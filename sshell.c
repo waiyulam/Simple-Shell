@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 		int pid = fork();
 		if (pid == 0)
 		{
-			/* Child process*/
+			/* Child process, use execvp to execute command on env variable*/
 			execvp(args[0], args);
 			exit(1);
 		}
