@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+ #include <sys/wait.h>
 
 int main(int argc, char *argv[])
 {
 	char *cmd = "/bin/date -u";
-	int retval;
+	int retval = 0;
 
 	int pid = fork();
 	if (pid == 0) {
