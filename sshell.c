@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 		// Check malloc allocation success
 		if (cmd == NULL)
 		{
-			perror("Unable to allocate buffer");
+			perror("malloc fails to allocate memory");
 			exit(1);
 		}
 		// read line from user input currently assume just command
@@ -38,8 +38,15 @@ int main(int argc, char *argv[])
 			/* Child process, use execvp to execute command on env variable*/
 			execvp(args[0], args);
 			exit(1);
+			perror("execvp is not successfully executed");
+		} else if (pid == -1) {
+			/*fork error printing*/
+			exit(1);
+			perror("fork fails to spawn a child");
+		} else {
+			/*parent process, waits for child execution*/
+			wait(&status);
 		}
-		wait(&status);
 
 		fprintf(stderr, "+ completed \'%s\': [%d]\n", cmd, status);
 		// release memory for my command
