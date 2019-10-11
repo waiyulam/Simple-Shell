@@ -15,6 +15,9 @@ size_t buffersize = 512;
 extern int errno;
 
 int parseCmd(char* cmd, char** cmdArgs);
+int redirectionCondCheck(char* input);
+int redirection(char* input, int cond);
+void removeSpaces(char* input, char* output);
 
 int main(int argc, char *argv[])
 {
@@ -42,13 +45,15 @@ int main(int argc, char *argv[])
     	cmd[strlen(cmd)-1] = '\0';
     }
 
+		redirection(cmd, redirectionCondCheck(cmd));
+
 		// exit the shell
 	  if (strcmp(cmd, "exit") == 0){
 			fprintf(stderr, "Bye...\n");
 			exit(0);
 		}
 
-		//parse command line to arguments 
+		//parse command line to arguments
 		int argSize = parseCmd(cmd, cmdArgs);
 		// Try to open a directory for cd command
 		// error handling type setting
@@ -59,7 +64,7 @@ int main(int argc, char *argv[])
 			args[i] = cmdArgs[i];
 		}
 		args[argSize] = NULL;
-		
+
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
@@ -98,7 +103,7 @@ int main(int argc, char *argv[])
 				strcpy(path,cmdArgs[1]);
 				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				chdir(path);
-			}		
+			}
 		}
 			fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
 			free(cmd);
@@ -108,7 +113,7 @@ int main(int argc, char *argv[])
 
 int parseCmd(char* cmd, char** cmdArgs)
 {
-		// make a temp string to avoid cmd altered 
+		// make a temp string to avoid cmd altered
 		char *temp = (char *)malloc(buffersize * sizeof(char));
 		strcpy(temp,cmd);
 		char s[2] = " ";
@@ -126,4 +131,70 @@ int parseCmd(char* cmd, char** cmdArgs)
 			count++;
 		}
 		return count;
+}
+
+int redirectionCondCheck(char* input)
+{
+	// strchr returns the pointer to the first occurence of character, null otherwise
+
+	// Check if '<' and '>' both occur, return 1 if true
+	if ((strchr(input, '<')!=NULL) && (strchr(input, '>')!=NULL))
+	{
+		return 1;
+	}
+	// Check if '<' occurs but '>' not occurs, return 2 if true
+	else if ((strchr(input, '<')!=NULL) && (strchr(input, '>')==NULL))
+	{
+		return 2;
+	}
+	// Check if '>' occurs but '<' not occurs, return 3 if true
+	else if ((strchr(input, '<')==NULL) && (strchr(input, '>')!=NULL))
+	{
+		return 3;
+	}
+	// Check if '>' and '<' both not occur, return 0
+	else {
+		return 0;
+	}
+	return -1;
+}
+
+int redirection(char* input, int cond)
+{
+	if (cond == 2) {
+		char* command = (char *)malloc(20 * sizeof(char));
+		char* token = (char *)malloc(100 * sizeof(char));
+		char* filename = (char *)malloc(100 * sizeof(char));
+		//  Empty space token for further use
+		char s[2] = " ";
+		char* temp = (char *)malloc(100 * sizeof(char));
+ 		command = strtok(input, s);
+		temp = strtok(NULL, "<");
+		removeSpaces(temp, token);
+		temp = strtok(NULL, "<");
+		removeSpaces(temp, filename);
+		printf("current command: %s\n", command);
+		printf("token portion: %s\n", token);
+		printf("file portion: %s\n", filename);
+		printf("length of file: %zu\n", strlen(token));
+		printf("length of file: %zu\n", strlen(filename));
+		//free(command);
+		//free(filename);
+		//free(token);
+		//free(temp);
+		return 0;
+	}
+	return -1;
+}
+
+
+void removeSpaces(char* input, char* output)
+{	// output has its own index differing from input
+	int j = 0;
+	for(int i = 0; i < strlen(input); i++) {
+		if (input[i]!=' ') {
+			output[j] = input[i];
+			j++;
+		}
+	}
 }
