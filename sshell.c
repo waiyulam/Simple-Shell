@@ -10,6 +10,8 @@
 
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
+// Maximum input line size is 512
+size_t buffersize = 512;
 extern int errno;
 
 int parseCmd(char* cmd, char** cmdArgs);
@@ -19,8 +21,6 @@ int main(int argc, char *argv[])
 	while (true)
 	{
 		printf("sshell$ ");
-		// Maximum input line size is 512
-		size_t buffersize = 512;
 		char *cmd = (char *)malloc(buffersize * sizeof(char));
 		char *cmdArgs[Max_ARG];
 		for (int i = 0; i < Max_ARG; i++)
@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 
+		//parse command line to arguments 
 		int argSize = parseCmd(cmd, cmdArgs);
 		// Try to open a directory for cd command
 		// error handling type setting
@@ -58,6 +59,7 @@ int main(int argc, char *argv[])
 			args[i] = cmdArgs[i];
 		}
 		args[argSize] = NULL;
+		
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
@@ -95,17 +97,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		// Error handling printing option for cd
-		fprintf(stderr, "+ completed \'");
-		for (int i = 0; i<argSize; i++)
-		{	if (i < argSize-1){
-			fprintf(stderr, "%s ", cmdArgs[i]);
-			} else{
-			fprintf(stderr, "%s", cmdArgs[i]);
-			}
-		}
-
-		fprintf(stderr, "\' [%d]\n", WEXITSTATUS(status));
+		fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
 		// release memory for my command
 		free(cmd);
 	}
@@ -113,8 +105,11 @@ int main(int argc, char *argv[])
 
 int parseCmd(char* cmd, char** cmdArgs)
 {
+		// make a temp string to avoid cmd altered 
+		char *temp = (char *)malloc(buffersize * sizeof(char));
+		strcpy(temp,cmd);
 		char s[2] = " ";
-		cmdArgs[0] = strtok(cmd, s);
+		cmdArgs[0] = strtok(temp, s);
 		int count = 1;
 		char* token;
 		while (true)
