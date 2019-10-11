@@ -1,18 +1,18 @@
-// This file contains the data structure for command 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include "cmdOperations.h"
+// currently assume maximum command line argument is 16
 #define Max_ARG 16
-size_t buffersize = 512;
-
-struct Command {
-    // cmd_line is a string variable that stores command line input 
-    char *cmd_line;
-    // cmdArgs is a string array that stores parsing result of command line input 
-    char *cmdArgs[Max_ARG];
-    // numArgs keep track of the number of arguments in command line input 
-    int numArgs;
-}
 
 // Constructor (without command allocation)
 void command__init(Command* self, char *user_input) {
+   // removes new line character, mark the end by end of line character
+    if (user_input[strlen(user_input)-1] == '\n')
+   {
+      user_input[strlen(user_input)-1] = '\0';
+   }
     strcpy(self->cmd_line,user_input);
     char s[2] = " ";
     self->cmdArgs[0] = strtok(user_input, s);
@@ -33,7 +33,9 @@ void command__init(Command* self, char *user_input) {
 
  // Allocation + initialization (equivalent to "new Point(x, y)")
 Command* Command__create(char *user_input) {
-   Command* result = (Command*) malloc(sizeof(Point));
+   Command* result = (Command*) malloc(sizeof(Command));
+   // This file contains the data structure for command 
+   size_t buffersize = 512;
    result->cmd_line = (char *)malloc(buffersize * sizeof(char));
    for (int i = 0; i < Max_ARG; i++)
 		{

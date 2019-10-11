@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <errno.h>
+#include "cmdOperations.h"
+
 
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
@@ -33,14 +35,15 @@ int main(int argc, char *argv[])
 			perror("malloc fails to alloscate memory");
 			exit(1);
 		}
+
 		// read line from user input currently assume just command
 		getline(&cmd, &buffersize, stdin);
 		int status = 0;
 		// removes new line character, mark the end by end of line character
 		if (cmd[strlen(cmd)-1] == '\n')
 		{
-    	cmd[strlen(cmd)-1] = '\0';
-    }
+			cmd[strlen(cmd)-1] = '\0';
+		}
 
 		// exit the shell
 	  if (strcmp(cmd, "exit") == 0){
