@@ -68,10 +68,9 @@ int main(int argc, char *argv[])
 				exit(0);
 			} else{
 				execvp(args[0], args);
+				// This is not the error handle for command not found
+				exit(1);
 			}
-			// This is not the error handle for command not found
-			//fprintf(stderr, "Error: command not found\n");
-			exit(1);
 		} else if (pid == -1) {
 			/*fork error printing*/
 			perror("fork fails to spawn a child");
