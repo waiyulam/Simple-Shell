@@ -43,11 +43,13 @@ int main(int argc, char *argv[])
     }
 
 		// exit the shell
-	  if (strcmp(cmd, "exit") == 0) break;
+	  if (strcmp(cmd, "exit") == 0){
+			fprintf(stderr, "Bye...\n");
+			exit(0);
+		}
 
 		int argSize = parseCmd(cmd, cmdArgs);
 		// Try to open a directory for cd command
-		DIR* dir = opendir(cmdArgs[1]);
 		// error handling type setting
 
 		/*printf("PATH : %s\n", getenv("PATH"));*/
@@ -59,7 +61,14 @@ int main(int argc, char *argv[])
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
-			execvp(args[0], args);
+			if (strcmp(cmdArgs[0], "pwd")==0){
+				char s[100];
+				fprintf(stderr, "%s\n", getcwd(s, 100));
+			} else if (strcmp(cmdArgs[0], "pwd") == 0){
+				exit(0);
+			} else{
+				execvp(args[0], args);
+			}
 			// This is not the error handle for command not found
 			//fprintf(stderr, "Error: command not found\n");
 			exit(1);
@@ -70,17 +79,15 @@ int main(int argc, char *argv[])
 		} else {
 			/*parent process, waits for child execution*/
 			wait(&status);
-		}
-
-		if (strcmp(cmdArgs[0], "cd")==0)
-		{
-			if (dir) {
-				closedir(dir);
-			} else if (ENOENT == errno) {
-				printf("Error: no such directory\n");
-			} else {
-				exit(1);
-				perror("some other system errors\n");
+			if (strcmp(cmdArgs[0], "cd")==0)
+			{
+				char s[100];
+				char path[150];
+				sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
+				if (chdir(path) == 0) {
+				} else {
+					fprintf(stderr, "Error: no such directory\n");
+				}
 			}
 		}
 
