@@ -64,12 +64,14 @@ int main(int argc, char *argv[])
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
 			if (strcmp(cmdArgs[0], "pwd")==0){
+				// 100 is default -> check with porkett
 				char s[100];
 				fprintf(stderr, "%s\n", getcwd(s, 100));
 			} else if (strcmp(cmdArgs[0], "cd") == 0){
 				char s[100];
 				char path[150];
-				sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
+				strcpy(path,cmdArgs[1]);
+				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				if (chdir(path) == 0) {
 					exit(0);
 				} else {
@@ -86,21 +88,21 @@ int main(int argc, char *argv[])
 			perror("fork fails to spawn a child");
 			exit(1);
 		} else {
-			/*parent process, waits for child execution*/
+			// parent process, waits for child execution
 			wait(&status);
 			if (strcmp(cmdArgs[0], "cd")==0)
 			{
 				char s[100];
 				char path[150];
-				sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
+				strcpy(path,cmdArgs[1]);
+				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				chdir(path);
 			}
 		}
-
-		fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
-		// release memory for my command
-		free(cmd);
+			fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
+			free(cmd);
 	}
+
 }
 
 int parseCmd(char* cmd, char** cmdArgs)
