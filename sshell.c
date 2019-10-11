@@ -51,18 +51,22 @@ int main(int argc, char *argv[])
 		// error handling type setting
 
 		/*printf("PATH : %s\n", getenv("PATH"));*/
-		char *args[] = {cmdArgs[0], NULL};
-
+		char *args[argSize+1];
+		for (int i = 0; i < argSize; i++){
+			args[i] = cmdArgs[i];
+		}
+		args[argSize] = NULL;
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
-			execvp(cmdArgs[0], args);
-			fprintf(stderr, "Error: command not found\n");
+			execvp(args[0], args);
+			// This is not the error handle for command not found
+			//fprintf(stderr, "Error: command not found\n");
 			exit(1);
 		} else if (pid == -1) {
 			/*fork error printing*/
-			exit(1);
 			perror("fork fails to spawn a child");
+			exit(1);
 		} else {
 			/*parent process, waits for child execution*/
 			wait(&status);
