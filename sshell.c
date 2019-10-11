@@ -67,8 +67,9 @@ int main(int argc, char *argv[])
 				// 100 is default -> check with porkett
 				char s[100];
 				fprintf(stderr, "%s\n", getcwd(s, 100));
+				exit(0);
 			} else if (strcmp(cmdArgs[0], "cd") == 0){
-				char s[100];
+				// char s[100];
 				char path[150];
 				strcpy(path,cmdArgs[1]);
 				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
@@ -92,12 +93,12 @@ int main(int argc, char *argv[])
 			wait(&status);
 			if (strcmp(cmdArgs[0], "cd")==0)
 			{
-				char s[100];
+				// char s[100];
 				char path[150];
 				strcpy(path,cmdArgs[1]);
 				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				chdir(path);
-			}
+			}		
 		}
 			fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
 			free(cmd);
