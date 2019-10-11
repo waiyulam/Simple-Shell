@@ -64,8 +64,16 @@ int main(int argc, char *argv[])
 			if (strcmp(cmdArgs[0], "pwd")==0){
 				char s[100];
 				fprintf(stderr, "%s\n", getcwd(s, 100));
-			} else if (strcmp(cmdArgs[0], "pwd") == 0){
-				exit(0);
+			} else if (strcmp(cmdArgs[0], "cd") == 0){
+				char s[100];
+				char path[150];
+				sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
+				if (chdir(path) == 0) {
+					exit(0);
+				} else {
+					fprintf(stderr, "Error: no such directory\n");
+					exit(1);
+				}
 			} else{
 				execvp(args[0], args);
 				// This is not the error handle for command not found
@@ -83,10 +91,7 @@ int main(int argc, char *argv[])
 				char s[100];
 				char path[150];
 				sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
-				if (chdir(path) == 0) {
-				} else {
-					fprintf(stderr, "Error: no such directory\n");
-				}
+				chdir(path);
 			}
 		}
 
