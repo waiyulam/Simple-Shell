@@ -5,4 +5,4 @@ sshell.o : sshell.c
 cmdOperations.o: cmdOperations.c 
 		gcc -c -Wall -Werror -g cmdOperations.c
 clean :
-		rm -f sshell sshell.o
+		rm -f sshell sshell.o cmdOperations.o

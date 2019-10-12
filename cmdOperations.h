@@ -9,9 +9,11 @@ typedef struct {
     char *cmd_line;
     // cmdArgs is a string array that stores parsing result of command line input
     // assume we have 16 maximum arguments  
-    char *cmdArgs[16];
+    char **cmdArgs;
     // numArgs keep track of the number of arguments in command line input 
     int numArgs;
+    // program name 
+    char *program;
 } Command;
 
 // Constructor (without command allocation)
@@ -35,6 +37,7 @@ char** command__cmdArgs(Command* self);
 // Equivalent to "command::numArgs()" in C++ version
 int command__numArgs(Command* self);
 
+char* command__program(Command* self);
 
 
 

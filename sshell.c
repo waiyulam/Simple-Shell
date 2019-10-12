@@ -9,11 +9,8 @@
 #include <errno.h>
 #include "cmdOperations.h"
 
-
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
-// Maximum input line size is 512
-size_t buffersize = 512;
 extern int errno;
 
 int parseCmd(char* cmd, char** cmdArgs);
@@ -23,63 +20,42 @@ void removeSpaces(char* input, char* output);
 
 int main(int argc, char *argv[])
 {
-	while (true)
-	{
+	while (1)
+	{	
+		// Maximum input line size is 512
+		size_t buffersize = 512;
+		char* user_input = (char *)malloc(buffersize * sizeof(char));
 		printf("sshell$ ");
-		char *cmd = (char *)malloc(buffersize * sizeof(char));
-		char *cmdArgs[Max_ARG];
-		for (int i = 0; i < Max_ARG; i++)
-		{
-			cmdArgs[i] = (char *)malloc(buffersize * sizeof(char));
-		}
+		// read line from user input currently assume just command
+		getline(&user_input, &buffersize, stdin);
+
+		Command* command = Command__create(user_input);
 		// Check malloc allocation success
-		if (cmd == NULL)
+		if (command == NULL)
 		{
 			perror("malloc fails to alloscate memory");
 			exit(1);
 		}
 
-		// read line from user input currently assume just command
-		getline(&cmd, &buffersize, stdin);
-		int status = 0;
-		// removes new line character, mark the end by end of line character
-		if (cmd[strlen(cmd)-1] == '\n')
-		{
-			cmd[strlen(cmd)-1] = '\0';
-		}
-
-		redirection(cmd, redirectionCondCheck(cmd));
-
 		// exit the shell
-	  if (strcmp(cmd, "exit") == 0){
+	 	if (strcmp(command__program(command), "exit") == 0){
 			fprintf(stderr, "Bye...\n");
 			exit(0);
 		}
-
-		//parse command line to arguments
-		int argSize = parseCmd(cmd, cmdArgs);
-		// Try to open a directory for cd command
-		// error handling type setting
-
-		/*printf("PATH : %s\n", getenv("PATH"));*/
-		char *args[argSize+1];
-		for (int i = 0; i < argSize; i++){
-			args[i] = cmdArgs[i];
-		}
-		args[argSize] = NULL;
-
+		
+		int status = 0;
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
-			if (strcmp(cmdArgs[0], "pwd")==0){
+			if (strcmp(command__program(command), "pwd")==0){
 				// 100 is default -> check with porkett
 				char s[100];
 				fprintf(stderr, "%s\n", getcwd(s, 100));
 				exit(0);
-			} else if (strcmp(cmdArgs[0], "cd") == 0){
+			} else if (strcmp(command__program(command), "cd") == 0){
 				// char s[100];
 				char path[150];
-				strcpy(path,cmdArgs[1]);
+				strcpy(path,command__cmdArgs(command)[1]);
 				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				if (chdir(path) == 0) {
 					exit(0);
@@ -88,7 +64,7 @@ int main(int argc, char *argv[])
 					exit(1);
 				}
 			} else{
-				execvp(args[0], args);
+				execvp(command__program(command), command__cmdArgs(command));
 				// This is not the error handle for command not found
 				exit(1);
 			}
@@ -99,41 +75,18 @@ int main(int argc, char *argv[])
 		} else {
 			// parent process, waits for child execution
 			wait(&status);
-			if (strcmp(cmdArgs[0], "cd")==0)
+			if (strcmp(command__program(command), "cd")==0)
 			{
 				// char s[100];
 				char path[150];
-				strcpy(path,cmdArgs[1]);
+				strcpy(path,command__cmdArgs(command)[1]);
 				// sprintf(path,"%s%s%s",getcwd(s, 100),"/",cmdArgs[1]);
 				chdir(path);
 			}
 		}
-			fprintf(stderr, "+ completed \'%s\' [%d]\n",cmd,WEXITSTATUS(status));
-			free(cmd);
+			fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(command),WEXITSTATUS(status));
+			Command__destroy(command);
 	}
-
-}
-
-int parseCmd(char* cmd, char** cmdArgs)
-{
-		// make a temp string to avoid cmd altered
-		char *temp = (char *)malloc(buffersize * sizeof(char));
-		strcpy(temp,cmd);
-		char s[2] = " ";
-		cmdArgs[0] = strtok(temp, s);
-		int count = 1;
-		char* token;
-		while (true)
-		{
-			token = strtok(NULL, s);
-			if (token != NULL){
-				cmdArgs[count] = token;
-			} else{
-				break;
-			}
-			count++;
-		}
-		return count;
 }
 
 int redirectionCondCheck(char* input)
