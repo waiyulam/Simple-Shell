@@ -18,6 +18,8 @@ typedef struct {
     char *in_redirect;
     // output redirect file name 
     char *out_redirect;
+    // boolean variable indicate if command constructor succeed or fail
+    bool FAIL;
 } Command;
 
 // Constructor (without command allocation)
@@ -43,6 +45,11 @@ int command__numArgs(Command* self);
 
 char* command__program(Command* self);
 
+char* command__indirect(Command* self);
+
+char* command__outdirect(Command* self);
+
+bool command__Fail(Command* self);
 
 
 

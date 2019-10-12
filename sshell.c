@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "cmdOperations.h"
 
 // currently assume maximum command line argument is 16
@@ -30,6 +32,12 @@ int main(int argc, char *argv[])
 		getline(&user_input, &buffersize, stdin);
 
 		Command* command = Command__create(user_input);
+
+		// Check if the command is valid 
+		if (command__Fail(command)){
+			continue; // error 
+		}
+
 		// Check malloc allocation success
 		if (command == NULL)
 		{
@@ -42,11 +50,41 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Bye...\n");
 			exit(0);
 		}
-		
+
 		int status = 0;
 		int pid = fork();
 		if (pid == 0){
 			/* Child process, use execvp to execute command on env variable*/
+					// Check if command need input redirection 
+			if (strlen(command__indirect(command)) != 0){
+				int fd;
+				// fprintf(stderr, "Input direct file %s\n",command__indirect(command));
+				fd = open(command__indirect(command), O_RDONLY);
+				// check if the file user inputted can not be opened
+				if (fd < 0) {
+					fprintf(stderr, "Error: cannot open input file\n");
+					exit(1); // error -> continue to prompt user for new command line 
+				}
+				// change the input stream to fd
+				dup2(fd, 0);
+				close(fd);
+			}
+
+			// Check if command need output redirection 
+			if (strlen(command__outdirect(command)) != 0){
+				int fd;
+				// fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
+				fd = open(command__outdirect(command),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+				// check if the file user inputted can not be opened
+				if (fd < 0) {
+					fprintf(stderr, "Error: cannot open output file\n");
+					exit(1); // error -> continue to prompt user for new command line 
+				}
+				// change the input stream to fd
+				dup2(fd, 1);
+				close(fd);
+			}
+
 			if (strcmp(command__program(command), "pwd")==0){
 				// 100 is default -> check with porkett
 				char s[100];
@@ -89,68 +127,3 @@ int main(int argc, char *argv[])
 	}
 }
 
-int redirectionCondCheck(char* input)
-{
-	// strchr returns the pointer to the first occurence of character, null otherwise
-
-	// Check if '<' and '>' both occur, return 1 if true
-	if ((strchr(input, '<')!=NULL) && (strchr(input, '>')!=NULL))
-	{
-		return 1;
-	}
-	// Check if '<' occurs but '>' not occurs, return 2 if true
-	else if ((strchr(input, '<')!=NULL) && (strchr(input, '>')==NULL))
-	{
-		return 2;
-	}
-	// Check if '>' occurs but '<' not occurs, return 3 if true
-	else if ((strchr(input, '<')==NULL) && (strchr(input, '>')!=NULL))
-	{
-		return 3;
-	}
-	// Check if '>' and '<' both not occur, return 0
-	else {
-		return 0;
-	}
-	return -1;
-}
-
-int redirection(char* input, int cond)
-{
-	if (cond == 2) {
-		char* command = (char *)malloc(20 * sizeof(char));
-		char* token = (char *)malloc(100 * sizeof(char));
-		char* filename = (char *)malloc(100 * sizeof(char));
-		//  Empty space token for further use
-		char s[2] = " ";
-		char* temp = (char *)malloc(100 * sizeof(char));
- 		command = strtok(input, s);
-		temp = strtok(NULL, "<");
-		removeSpaces(temp, token);
-		temp = strtok(NULL, "<");
-		removeSpaces(temp, filename);
-		printf("current command: %s\n", command);
-		printf("token portion: %s\n", token);
-		printf("file portion: %s\n", filename);
-		printf("length of file: %zu\n", strlen(token));
-		printf("length of file: %zu\n", strlen(filename));
-		//free(command);
-		//free(filename);
-		//free(token);
-		//free(temp);
-		return 0;
-	}
-	return -1;
-}
-
-
-void removeSpaces(char* input, char* output)
-{	// output has its own index differing from input
-	int j = 0;
-	for(int i = 0; i < strlen(input); i++) {
-		if (input[i]!=' ') {
-			output[j] = input[i];
-			j++;
-		}
-	}
-}

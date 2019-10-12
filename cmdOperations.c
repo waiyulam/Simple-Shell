@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "cmdOperations.h"
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
@@ -13,6 +15,9 @@ void command__init(Command* self, char *user_input) {
       size_t buffersize = 512;
       self->cmd_line = (char *)malloc(buffersize * sizeof(char));
       self->program = (char *)malloc(buffersize * sizeof(char));
+      self->in_redirect = (char *)malloc(buffersize * sizeof(char));
+      self->out_redirect = (char *)malloc(buffersize * sizeof(char));
+      self->FAIL = false;
       char *tempArgs[Max_ARG];
       for (int i = 0; i < Max_ARG; i++)
 		{
@@ -58,18 +63,35 @@ void command__init(Command* self, char *user_input) {
             if (token == NULL){
                // example: echo gogo > 
                fprintf(stderr, "Error: no output file\n");
+               self->FAIL = true;
                break;
             }else{
                // example : echo gogo > temp.txt
-               self->out_redirect = (char *)malloc(buffersize * sizeof(char));
                strcpy(self->out_redirect,token);
-            //   printf("output file:  %s\n",token);
+               //   printf("output file:  %s\n",token);
+               int fd;
+               // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
+               fd = open(self->out_redirect,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+               // check if the file user inputted can not be opened
+               if (fd < 0) {
+                  fprintf(stderr, "Error: cannot open output file\n");
+                   self->FAIL = true; // error -> continue to prompt user for new command line 
+               }
+               close(fd);
             }
          }else{
             // example: >temp.txt
-            self->out_redirect = (char *)malloc(buffersize * sizeof(char));
             strcpy(self->out_redirect,temp);
            // printf("output file:  %s\n",temp);
+            int fd;
+            // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
+            fd = open(self->out_redirect,O_WRONLY|O_CREAT|O_TRUNC);
+            // check if the file user inputted can not be opened
+            if (fd < 0) {
+               fprintf(stderr, "Error: cannot open output file\n");
+                  self->FAIL = true; // error -> continue to prompt user for new command line 
+            }
+            close(fd);
          }
       }
       // Find current token contains input redirection files 
@@ -90,18 +112,33 @@ void command__init(Command* self, char *user_input) {
             token = strtok_r(NULL,s,&saveSpace);
             if (token == NULL){
                // example: echo gogo < 
-               fprintf(stderr, "Error: no output file\n");
+               fprintf(stderr, "Error: no input file\n");
+               self->FAIL = true;
                break;
             }else{
                // example : echo gogo < temp.txt
-               self->in_redirect = (char *)malloc(buffersize * sizeof(char));
                strcpy(self->in_redirect,token);
+               int fd;
+				   fd = open(self->in_redirect, O_RDONLY);
+               // check if the file user inputted can not be opened
+				   if (fd < 0) {
+					   fprintf(stderr, "Error: cannot open input file\n");
+					   self->FAIL = true; // error -> continue to prompt user for new command line 
+				   }
+               close(fd);
                //printf("input file:  %s\n",token);
             }
          }else{
             // example: <temp.txt
-            self->in_redirect = (char *)malloc(buffersize * sizeof(char));
             strcpy(self->in_redirect,temp);
+            int fd;
+            fd = open(self->in_redirect, O_RDONLY);
+            // check if the file user inputted can not be opened
+            if (fd < 0) {
+               fprintf(stderr, "Error: cannot open input file\n");
+               self->FAIL = true; // error -> continue to prompt user for new command line 
+            }
+            close(fd);
             //printf("input file:  %s\n",temp);
          }
       }else{
@@ -122,7 +159,7 @@ void command__init(Command* self, char *user_input) {
     for (int i = 0; i < count; i++){
          self->cmdArgs[i] = (char *)malloc(buffersize * sizeof(char));
 			strcpy(self->cmdArgs[i], tempArgs[i]);
-         // printf("%s\n",self->cmdArgs[i]);
+        // printf("%s\n",self->cmdArgs[i]);
 		}
 	 self->cmdArgs[count] = NULL;
  }
@@ -164,4 +201,18 @@ int command__numArgs(Command* self) {
 // Equivalent to "command::program()" in C++ version
 char* command__program(Command* self) {
    return self->program;
+}
+
+// Equivalent to "command::indirect()" in C++ version
+char* command__indirect(Command* self) {
+   return self->in_redirect;
+}
+
+// Equivalent to "command::outdirect()" in C++ version
+char* command__outdirect(Command* self) {
+   return self->out_redirect;
+}
+
+bool command__Fail(Command* self){
+   return self->FAIL;
 }
