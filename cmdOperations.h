@@ -14,6 +14,10 @@ typedef struct {
     int numArgs;
     // program name 
     char *program;
+    // input redirect file name 
+    char *in_redirect;
+    // output redirect file name 
+    char *out_redirect;
 } Command;
 
 // Constructor (without command allocation)

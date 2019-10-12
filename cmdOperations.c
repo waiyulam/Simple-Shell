@@ -28,29 +28,103 @@ void command__init(Command* self, char *user_input) {
     strcpy(self->cmd_line,user_input);
     // Parse command line input to arguments 
     char s[2] = " ";
-    tempArgs[0] = strtok(user_input, s);
-    strcpy(self->program,tempArgs[0]);
-    int count = 1;
+    // store the number of arguments
+    int count = 0;
     char* token;
-    while (true)
+    // save pointer 
+    char* saveSpace = NULL;
+    // https://stackoverflow.com/questions/15961253/c-correct-usage-of-strtok-r
+    // Different strings may be parsed concurrently using sequences of calls to strtok_r() that specify different saveptr arguments.
+    // Don't use strtok : not thread safe 
+    token = strtok_r(user_input, s, &saveSpace);
+    while (token != NULL)
     {
-        token = strtok(NULL, s);
-        if (token != NULL){
-            tempArgs[count] = token;
-        } else{
-            break;
-        }
+      // Find current token contains output redirection files 
+      if (strchr(token, '>')!=NULL){
+         char* temp;
+         char* saveOut = NULL;
+         // example :  world!>temp.txt
+         if (token[0] != '>'){
+            temp = strtok_r(token,">",&saveOut);
+            tempArgs[count] = temp; 
+            count++;
+            temp = strtok_r(NULL,">",&saveOut);
+         }else{
+            // example: > temp.txt
+            temp = strtok_r(token,">",&saveOut);
+         }
+         if (temp == NULL){
+            token = strtok_r(NULL,s,&saveSpace);
+            if (token == NULL){
+               // example: echo gogo > 
+               fprintf(stderr, "Error: no output file\n");
+               break;
+            }else{
+               // example : echo gogo > temp.txt
+               self->out_redirect = (char *)malloc(buffersize * sizeof(char));
+               strcpy(self->out_redirect,token);
+            //   printf("output file:  %s\n",token);
+            }
+         }else{
+            // example: >temp.txt
+            self->out_redirect = (char *)malloc(buffersize * sizeof(char));
+            strcpy(self->out_redirect,temp);
+           // printf("output file:  %s\n",temp);
+         }
+      }
+      // Find current token contains input redirection files 
+      else if (strchr(token, '<')!=NULL){
+         char* temp;
+         char* saveIn = NULL;
+         // example :  world!<temp.txt
+         if (token[0] != '<'){
+            temp = strtok_r(token,"<",&saveIn);
+            tempArgs[count] = temp; 
+            count++;
+            temp = strtok_r(NULL,"<",&saveIn);
+         }else{
+            // example: < temp.txt
+            temp = strtok_r(token,"<",&saveIn);
+         }
+         if (temp == NULL){
+            token = strtok_r(NULL,s,&saveSpace);
+            if (token == NULL){
+               // example: echo gogo < 
+               fprintf(stderr, "Error: no output file\n");
+               break;
+            }else{
+               // example : echo gogo < temp.txt
+               self->in_redirect = (char *)malloc(buffersize * sizeof(char));
+               strcpy(self->in_redirect,token);
+               //printf("input file:  %s\n",token);
+            }
+         }else{
+            // example: <temp.txt
+            self->in_redirect = (char *)malloc(buffersize * sizeof(char));
+            strcpy(self->in_redirect,temp);
+            //printf("input file:  %s\n",temp);
+         }
+      }else{
+        tempArgs[count] = token;
+        // printf("%s\n",token);
         count++;
+      }
+      token = strtok_r(NULL, s,&saveSpace);
     }
+
+    // Initialize program name
+    strcpy(self->program,tempArgs[0]);
     // Initialize numArgs
     self->numArgs = count;
+
     // Initialize cmdArgs: count + 1 for last null arguments 
     self->cmdArgs = (char **)malloc(sizeof(char*) * (count+1));
     for (int i = 0; i < count; i++){
          self->cmdArgs[i] = (char *)malloc(buffersize * sizeof(char));
 			strcpy(self->cmdArgs[i], tempArgs[i]);
+         // printf("%s\n",self->cmdArgs[i]);
 		}
-		self->cmdArgs[count] = NULL;
+	 self->cmdArgs[count] = NULL;
  }
 
  // Allocation + initialization (equivalent to "new Point(x, y)")
