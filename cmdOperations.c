@@ -34,7 +34,8 @@ void command__init(Command* self, char *user_input) {
     // Parse command line input to arguments 
     char s[2] = " ";
     // store the number of arguments
-    int count = 0;
+    int argsCount = 0;
+    int parseCount = 0;
     char* token;
     // save pointer 
     char* saveSpace = NULL;
@@ -42,8 +43,16 @@ void command__init(Command* self, char *user_input) {
     // Different strings may be parsed concurrently using sequences of calls to strtok_r() that specify different saveptr arguments.
     // Don't use strtok : not thread safe 
     token = strtok_r(user_input, s, &saveSpace);
+    parseCount++;
     while (token != NULL)
-    {
+    { 
+      // Error : too many arguments 
+      if (parseCount > 16){
+         fprintf(stderr, "Error: too many process arguments\n");
+         self->FAIL = true;
+         break;
+      }      
+
       // Find current token contains output redirection files 
       if (strchr(token, '>')!=NULL){
          char* temp;
@@ -51,8 +60,8 @@ void command__init(Command* self, char *user_input) {
          // example :  world!>temp.txt
          if (token[0] != '>'){
             temp = strtok_r(token,">",&saveOut);
-            tempArgs[count] = temp; 
-            count++;
+            tempArgs[argsCount] = temp; 
+            argsCount++;
             temp = strtok_r(NULL,">",&saveOut);
          }else{
             // example: > temp.txt
@@ -60,6 +69,7 @@ void command__init(Command* self, char *user_input) {
          }
          if (temp == NULL){
             token = strtok_r(NULL,s,&saveSpace);
+            parseCount++;
             if (token == NULL){
                // example: echo gogo > 
                fprintf(stderr, "Error: no output file\n");
@@ -101,8 +111,8 @@ void command__init(Command* self, char *user_input) {
          // example :  world!<temp.txt
          if (token[0] != '<'){
             temp = strtok_r(token,"<",&saveIn);
-            tempArgs[count] = temp; 
-            count++;
+            tempArgs[argsCount] = temp; 
+            argsCount++;
             temp = strtok_r(NULL,"<",&saveIn);
          }else{
             // example: < temp.txt
@@ -110,6 +120,7 @@ void command__init(Command* self, char *user_input) {
          }
          if (temp == NULL){
             token = strtok_r(NULL,s,&saveSpace);
+            parseCount++;
             if (token == NULL){
                // example: echo gogo < 
                fprintf(stderr, "Error: no input file\n");
@@ -142,26 +153,27 @@ void command__init(Command* self, char *user_input) {
             //printf("input file:  %s\n",temp);
          }
       }else{
-        tempArgs[count] = token;
+        tempArgs[argsCount] = token;
         // printf("%s\n",token);
-        count++;
+        argsCount++;
       }
       token = strtok_r(NULL, s,&saveSpace);
+      parseCount++;
     }
 
     // Initialize program name
     strcpy(self->program,tempArgs[0]);
     // Initialize numArgs
-    self->numArgs = count;
+    self->numArgs = argsCount;
 
-    // Initialize cmdArgs: count + 1 for last null arguments 
-    self->cmdArgs = (char **)malloc(sizeof(char*) * (count+1));
-    for (int i = 0; i < count; i++){
+    // Initialize cmdArgs: argsCount + 1 for last null arguments 
+    self->cmdArgs = (char **)malloc(sizeof(char*) * (argsCount+1));
+    for (int i = 0; i < argsCount; i++){
          self->cmdArgs[i] = (char *)malloc(buffersize * sizeof(char));
 			strcpy(self->cmdArgs[i], tempArgs[i]);
         // printf("%s\n",self->cmdArgs[i]);
 		}
-	 self->cmdArgs[count] = NULL;
+	 self->cmdArgs[argsCount] = NULL;
  }
 
  // Allocation + initialization (equivalent to "new Point(x, y)")

@@ -60,11 +60,6 @@ int main(int argc, char *argv[])
 				int fd;
 				// fprintf(stderr, "Input direct file %s\n",command__indirect(command));
 				fd = open(command__indirect(command), O_RDONLY);
-				// check if the file user inputted can not be opened
-				if (fd < 0) {
-					fprintf(stderr, "Error: cannot open input file\n");
-					exit(1); // error -> continue to prompt user for new command line 
-				}
 				// change the input stream to fd
 				dup2(fd, 0);
 				close(fd);
@@ -75,11 +70,6 @@ int main(int argc, char *argv[])
 				int fd;
 				// fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
 				fd = open(command__outdirect(command),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-				// check if the file user inputted can not be opened
-				if (fd < 0) {
-					fprintf(stderr, "Error: cannot open output file\n");
-					exit(1); // error -> continue to prompt user for new command line 
-				}
 				// change the input stream to fd
 				dup2(fd, 1);
 				close(fd);
