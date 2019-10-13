@@ -18,6 +18,7 @@
 extern int errno;
 int myCmdHandler(char** args) ;
 int redirection(Command *command,int pipeCount);
+int execute (Pipe *mypipe);
 int executePipe (Pipe *mypipe,char *user_input);
 
 int main(int argc, char *argv[])
@@ -30,32 +31,22 @@ int main(int argc, char *argv[])
 		printf("sshell$ ");
 		// read line from user input currently assume just command
 		getline(&user_input, &buffersize, stdin);
+		// Process string removes new line character, mark the end by end of line character
+		if (user_input[strlen(user_input)-1] == '\n'){ user_input[strlen(user_input)-1] = '\0'; }
+		// Create myPipe data structure : parsing the string and store commands
 		char* temp = (char *)malloc(buffersize * sizeof(char));
 		strcpy(temp,user_input);
-		if (user_input[strlen(user_input)-1] == '\n')
-   		{
-     		user_input[strlen(user_input)-1] = '\0';
-   		}
 		Pipe* myPipe = Pipe__create(temp);
-		// for (int i=0; i < myPipe->cmdCount;i++){
-     	// 	for (int j =0; j < myPipe->commands[i]->numArgs;j++){
-        // 	fprintf(stderr,"%s ",myPipe->commands[i]->cmdArgs[j]);
-      	// 	}		
-		// 	fprintf(stderr,"\n");
-   		// }
-
 		// Check malloc allocation success
 		if (myPipe == NULL)
-		{
+		{ 
 			perror("malloc fails to alloscate memory");
 			exit(1);
 		}
-
-		// empty string 
+		// Empty string 
 		if (myPipe->cmdCount == 0){
 			continue;
 		}
-
 		// Check if the commands are valid 
 		int valid_command = 1;
 		for (int i=0; i < myPipe->cmdCount;i++){
@@ -64,56 +55,22 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
-
 		if (valid_command == 0){
 			continue; // error 
 		}
-
 		// Execute if there is single command 
 		if (myPipe->cmdCount == 1){
-			Command *command = myPipe->commands[0];
 			// exit the shell
-			if (strcmp(command__program(command), "exit") == 0){
+			if (strcmp(command__program(myPipe->commands[0]), "exit") == 0){
 				fprintf(stderr, "Bye...\n");
 				exit(0);
 			}
-			int status = 0;
-			int pid = fork();
-			if (pid == 0){
-				/* Child process, use execvp to execute command on env variable*/
-				// check if command has redirection flags
-				int redirect = redirection(command,myPipe->cmdCount); 
-				if (redirect == 0){
-					exit(-1); // error exist and command not execute 
-				}
-				// execute if command program is not built in commands 
-				if (myCmdHandler(command__cmdArgs(command)) == 0){ 
-					execvp(command__program(command), command__cmdArgs(command));
-					// execvp will not return (unless Args[0] is not a valid executable file)
-					fprintf(stderr, "Error: command not found\n");
-					exit(-1); 
-				}
-			} else if (pid == -1) {
-				/*fork error printing*/
-				perror("fork fails to spawn a child");
-				exit(-1);
-			} else {
-				// parent process, waits for child execution
-				wait(&status);
-				if (strcmp(command__program(command), "cd")==0)
-				{
-					char path[150];
-					strcpy(path,command__cmdArgs(command)[1]);
-					chdir(path);
-				}
-			}
-				// fprintf(stderr,"status: %d\n",WEXITSTATUS(status));
-				if (WEXITSTATUS(status) != 255){
-					fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(command),WEXITSTATUS(status));
-				}
-				Pipe__destroy(myPipe);
-		}else{
-			/* execute multiple commands */
+			// executing .. 
+			execute(myPipe);
+			Pipe__destroy(myPipe);
+		}
+		// execute multiple commands
+		else{
 			// Exit if any commands has exit flag 
 			for (int i=0; i < myPipe->cmdCount;i++){
 				if (strcmp(command__program(myPipe->commands[i]), "exit") == 0){
@@ -121,6 +78,7 @@ int main(int argc, char *argv[])
 					exit(0);
 				}
 			} // for 
+			// executing .. 
 			executePipe(myPipe,user_input);
 			Pipe__destroy(myPipe);
     	} // if else 
@@ -166,30 +124,56 @@ int myCmdHandler(char** args)
     return 0; 
 } 
 
-// Redirection for single command line 
-// return 1 if redirection succeed or redirection not exist, 0 otherwise 
-int redirection(Command *command,int pipeCount){
-	// Check if command need input redirection 
-	if (strlen(command__indirect(command)) != 0){
-		int fd;
-		// fprintf(stderr, "Input direct file %s\n",command__indirect(command));
-		fd = open(command__indirect(command), O_RDONLY);
-		// change the input stream to fd
-		dup2(fd, 0);
-		close(fd);
-	}
-	// Check if command need output redirection 
-	if (strlen(command__outdirect(command)) != 0){
-		int fd;
-		// fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
-		fd = open(command__outdirect(command),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-		// change the input stream to fd
-		dup2(fd, 1);
-		close(fd);
+// Execute single command 
+int execute (Pipe *mypipe){
+	int status = 0;
+	int pid = fork();
+	if (pid == 0){
+		/* Child process, use execvp to execute command on env variable*/
+		// Check if command need input redirection 
+		if (strlen(command__indirect(mypipe->commands[0])) != 0){
+			int fd;
+			fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
+			dup2(fd, 0);
+			close(fd);
+		}
+		// Check if command need output redirection 
+		if (strlen(command__outdirect(mypipe->commands[0])) != 0){
+			int fd;
+			fd = open(command__outdirect(mypipe->commands[0]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+			// change the input stream to fd
+			dup2(fd, 1);
+			close(fd);
+		}
+		// execute if command program is not built in commands 
+		if (myCmdHandler(command__cmdArgs(mypipe->commands[0])) == 0){ 
+			execvp(command__program(mypipe->commands[0]), command__cmdArgs(mypipe->commands[0]));
+			// execvp will not return (unless Args[0] is not a valid executable file)
+			fprintf(stderr, "Error: command not found\n");
+			exit(-1); 
+		}
+	} else if (pid == -1) {
+		/*fork error printing*/
+		perror("fork fails to spawn a child");
+		exit(-1);
+	} else {
+		// parent process, waits for child execution
+		wait(&status);
+		if (strcmp(command__program(mypipe->commands[0]), "cd")==0)
+		{
+			char path[150];
+			strcpy(path,command__cmdArgs(mypipe->commands[0])[1]);
+			chdir(path);
+		}
+		// fprintf(stderr,"status: %d\n",WEXITSTATUS(status));
+		if (WEXITSTATUS(status) != 255){
+			fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(mypipe->commands[0]),WEXITSTATUS(status));
+		}
 	}
 	return 1;
 }
 
+// Execute pipeline command 
 int executePipe (Pipe *mypipe,char *user_input){
 	/* parent process : keep the file descriptor for STDIN and STDOUT for later use */
 	int myStdin=dup(0); // tmpin = 3 = STDIN

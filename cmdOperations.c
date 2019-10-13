@@ -23,12 +23,6 @@ void command__init(Command* self, char *user_input) {
 		{
 			tempArgs[i] = (char *)malloc(buffersize * sizeof(char));
 		}
-
-   // removes new line character, mark the end by end of line character
-    if (user_input[strlen(user_input)-1] == '\n')
-   {
-      user_input[strlen(user_input)-1] = '\0';
-   }
     // Initialize the cmd_line 
     strcpy(self->cmd_line,user_input);
     // Parse command line input to arguments 
