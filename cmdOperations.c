@@ -90,7 +90,7 @@ void command__init(Command* self, char *user_input) {
                fd = open(self->out_redirect,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
                // check if the file user inputted can not be opened
                if (fd < 0) {
-                  fprintf(stderr, "Error: cannot open output file\n");
+                   fprintf(stderr, "Error: cannot open output file\n");
                    self->FAIL = true; // error -> continue to prompt user for new command line 
                }
                close(fd);

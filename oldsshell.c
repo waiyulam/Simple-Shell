@@ -1,3 +1,5 @@
+/* This is simple shell for executing single or two command */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,7 +20,6 @@
 extern int errno;
 int myCmdHandler(char** args) ;
 int redirection(Command *command,int pipeCount);
-int executePipe (Pipe *mypipe,char *user_input);
 
 int main(int argc, char *argv[])
 {
@@ -120,12 +121,97 @@ int main(int argc, char *argv[])
 					fprintf(stderr, "Bye...\n");
 					exit(0);
 				}
-			} // for 
-			executePipe(myPipe,user_input);
-			Pipe__destroy(myPipe);
-    	} // if else 
-	} // while loop 
-} // main 
+			}
+			Command *command1 = myPipe->commands[0];
+			Command *command2 = myPipe->commands[1];
+			int p1_status = 0;
+			int p2_status = 0;
+			// 0 is read end, 1 is write end 
+			int pipefd[2];  
+			int p1, p2; 
+			if (pipe(pipefd) < 0) { 
+        		perror("Pipe could not be initialized\n"); 
+        		exit(-1);
+			}
+			p1 = fork();
+			if (p1 == -1){
+				/* children process */
+				/*fork error printing*/
+				perror("fork fails to spawn a child");
+				exit(-1);
+			}else if (p1 == 0){
+				/* Child 1 , use execvp to execute command on env variable*/
+				// Don't need read access to pipe 
+				close(pipefd[0]); 
+				// Replace stdout with the pipe 
+        		dup2(pipefd[1], STDOUT_FILENO); 
+				// close now unused file descriptor 
+        		close(pipefd[1]);
+				// check if command has redirection flags
+				int redirect = redirection(command1,myPipe->cmdCount); 
+				if (redirect == 0){
+					exit(-1); // error exist and command not execute 
+				}
+				// execute if command program is not built in commands 
+				if (myCmdHandler(command__cmdArgs(command1)) == 0){ 
+					execvp(command__program(command1), command__cmdArgs(command1));
+					// execvp will not return (unless Args[0] is not a valid executable file)
+					fprintf(stderr, "Error: command not found\n");
+					exit(-1);
+				}
+			}else{
+				/* parent process */
+				p2 = fork(); 
+				if (p2 == -1){
+					/* children process */
+					/*fork error printing*/
+					perror("fork fails to spawn a child");
+					exit(-1);
+				}else if (p2 ==0){
+					// Don't need write access to pipe 
+					close(pipefd[1]); 
+					// Replace stdin with the pipe 
+            		dup2(pipefd[0], STDIN_FILENO); 
+					// close now unused file descriptor 
+            		close(pipefd[0]); 
+					// check if command has redirection flags
+					int redirect = redirection(command2,myPipe->cmdCount); 
+					if (redirect == 0){
+						exit(-1); // error exist and command not execute 
+					}
+					// execute if command program is not built in commands 
+					if (myCmdHandler(command__cmdArgs(command2)) == 0){ 
+						execvp(command__program(command2), command__cmdArgs(command2));
+						// This is not the error handle for command not found
+						// execvp will not return (unless Args[0] is not a valid executable file)
+						fprintf(stderr, "Error: command not found\n");
+						exit(-1);
+					}
+				}else{
+						// wait for child 1 completed 
+						// parent executing, waiting for two children 
+						waitpid(p1,&p1_status,0);
+            			waitpid(p2,&p2_status,0);
+					}
+				}
+				if (WEXITSTATUS(p1_status) != 255 && WEXITSTATUS(p2_status) != 255){
+					fprintf(stderr, "+ completed \'%s\' ",user_input);
+					if (WEXITSTATUS(p1_status)!= EXIT_SUCCESS){
+						fprintf(stderr,"[%d]",command1->cmdIndex+1);
+					}else{
+						fprintf(stderr,"[%d]",WEXITSTATUS(p1_status));
+					}
+					if (WEXITSTATUS(p2_status)!= EXIT_SUCCESS){
+						fprintf(stderr,"[%d]",command2->cmdIndex+1);
+					}else{
+						fprintf(stderr,"[%d]",WEXITSTATUS(p2_status));
+					}
+					fprintf(stderr, "\n");
+				}
+				Pipe__destroy(myPipe);
+    		} 
+		}	
+}
 
 
 // Function to execute builtin commands
@@ -166,11 +252,16 @@ int myCmdHandler(char** args)
     return 0; 
 } 
 
-// Redirection for single command line 
+// Redirection 
 // return 1 if redirection succeed or redirection not exist, 0 otherwise 
 int redirection(Command *command,int pipeCount){
 	// Check if command need input redirection 
 	if (strlen(command__indirect(command)) != 0){
+		// In a pipeline of commands, only the first command can have its input redirected
+		if (pipeCount > 1 && command->cmdIndex != 0 ){
+			fprintf(stderr, "Error: mislocated input redirection\n");
+			return 0;
+		}
 		int fd;
 		// fprintf(stderr, "Input direct file %s\n",command__indirect(command));
 		fd = open(command__indirect(command), O_RDONLY);
@@ -178,8 +269,14 @@ int redirection(Command *command,int pipeCount){
 		dup2(fd, 0);
 		close(fd);
 	}
+
 	// Check if command need output redirection 
 	if (strlen(command__outdirect(command)) != 0){
+		// In a pipeline of commands, only the last command can have its output redirected
+		if (pipeCount > 1 && command->cmdIndex != (pipeCount-1) ){
+			fprintf(stderr, "Error: mislocated output redirection\n");
+			return 0;
+		}
 		int fd;
 		// fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
 		fd = open(command__outdirect(command),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
@@ -187,117 +284,7 @@ int redirection(Command *command,int pipeCount){
 		dup2(fd, 1);
 		close(fd);
 	}
-	return 1;
-}
 
-int executePipe (Pipe *mypipe,char *user_input){
-	/* parent process : keep the file descriptor for STDIN and STDOUT for later use */
-	int myStdin=dup(0); // tmpin = 3 = STDIN
-	int mySdtout=dup(1); // tempout = 4 = STDOUT
-	// Initial pid array for all single commands 
-	int pids[mypipe->cmdCount];
-	// Initial exit status array for all command process
-	int status[mypipe->cmdCount];
-	/* For fist command child process : 
-	* File descriptor : 0 STDIN is link to input redirect file or STDIN 
-	* File descriptor : 1 STDOUT is link to first Pipe[1] */
-	int in_fd;  // fd for input 
-
-	// Pipe redirect errror : 
-	for (int i =0; i<mypipe->cmdCount;i++){
-		if (strlen(command__outdirect(mypipe->commands[i])) != 0){
-			if (i != ( mypipe->cmdCount-1) ){
-				fprintf(stderr,"Error: mislocated output redirection\n");
-				return 0; // error -> don't execute 
-			}
-		}
-		if (strlen(command__indirect(mypipe->commands[i])) != 0){
-			if ( i != 0 ){
-				fprintf(stderr,"Error: mislocated input redirection\n");
-				return 0; // error -> don't execute 
-			}
-		}
-	} // for 
-
-	if (strlen(command__indirect(mypipe->commands[0])) != 0){
-		// Check if command need input redirection 
-		in_fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
-	}else{
-		// if no command need input redirection : use STDIN -> dup2 later 
-		in_fd = dup(myStdin);
-	}
-
-	int out_fd; // fd for output 
-	for (int i =0; i < mypipe->cmdCount;i++){
-		// Redirect input : first command : 0/input file, later command : pipe[0]
-		dup2(in_fd, 0);
-		close(in_fd); // close now unused file descriptor 
-
-		// Redirect output 
-		if (i == mypipe->cmdCount - 1){
-			// for last command : output can be redirect to output file 
-			if (strlen(command__outdirect(mypipe->commands[i])) != 0){
-				out_fd = open(command__outdirect(mypipe->commands[i]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-			}else{
-				out_fd = dup(mySdtout);
-			}
-		}else{
-			// not last single command 
-			int pipefd[2];
-			if (pipe(pipefd) < 0) { 
-				perror("Pipe could not be initialized\n"); 
-				return 0; // error -> don't execute 
-			}
-			out_fd=pipefd[1];
-			in_fd =pipefd[0];
-		}
-		// Redirect output 
-		dup2(out_fd,1);
-		close(out_fd); // close now unused file descriptor 
-
-		// Create child process for single command 
-		pids[i] = fork();
-		if (pids[i] == -1){
-			/* received for parent  process */
-			/*fork error printing*/
-			perror("fork fails to spawn a child");
-			return 0;
-		}else if (pids[i] == 0){
-			// received for child process 
-			// execute if command program is not built in commands 
-			if (myCmdHandler(command__cmdArgs(mypipe->commands[i])) == 0){ 
-				execvp(command__program(mypipe->commands[i]), command__cmdArgs(mypipe->commands[i]));
-				// execvp will not return (unless Args[0] is not a valid executable file)
-				fprintf(stderr, "Error: command not found\n");
-				exit(-1); // child process will not call fork()
-			}
-		}
-	} // for 
-
-	// Restore the stdin and stdout for parent process 
-	dup2(myStdin,0);
-	dup2(mySdtout,1);
-	close(myStdin);
-	close(mySdtout);
-
-	for (int i=0;i<mypipe->cmdCount;i++){
-		waitpid(pids[i],&status[i],0); // wait until all child process compledted 
-		// check status for all child process 
-		if (WEXITSTATUS(status) == 255){
-			// error for command not found when execute child process 
-			return 0;
-		} // if 
-	}//for 
-
-	fprintf(stderr, "+ completed \'%s\' ",user_input);
-	for (int i=0;i<mypipe->cmdCount;i++){
-		if (WEXITSTATUS(status[i])!= EXIT_SUCCESS){
-		fprintf(stderr,"[%d]",mypipe->commands[i]->cmdIndex+1);
-		}else{
-		fprintf(stderr,"[%d]",WEXITSTATUS(status[i]));
-		}
-	}
-	fprintf(stderr, "\n");
 	return 1;
 }
 
