@@ -20,8 +20,10 @@ typedef struct {
     char *out_redirect;
     // boolean variable indicate if command constructor succeed or fail
     bool FAIL;
-    //cmdIndex variable is to keep track of the index of command line if user input has multiple cmd with pipe
+    // cmdIndex variable is to keep track of the index of command line if user input has multiple cmd with pipe
     int cmdIndex;
+    // Collect status for command 
+    int status;
 
 } Command;
 

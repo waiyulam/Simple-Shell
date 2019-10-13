@@ -16,7 +16,7 @@
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
 extern int errno;
-int myCmdHandler(char** args) ;
+int myCmdHandler(Command *command) ;
 int redirection(Command *command,int pipeCount);
 int execute (Pipe *mypipe);
 int executePipe (Pipe *mypipe,char *user_input);
@@ -92,87 +92,81 @@ int main(int argc, char *argv[])
 
 // Function to execute builtin commands
 // Return 1 if command program match builtin cmd , 0 otherwise 
-int myCmdHandler(char** args) 
+int myCmdHandler(Command *command) 
 { 
     int numBuiltin = 2,switchArg = 0; 
     char* myCmdsList[numBuiltin]; 
-
     myCmdsList[0] = "cd"; 
 	char path[150];
     myCmdsList[1] = "pwd"; 
 	char s[100];
 
     for (int i = 0; i < numBuiltin; i++) { 
-        if (strcmp(args[0], myCmdsList[i]) == 0) { 
+        if (strcmp(command->cmdArgs[0], myCmdsList[i]) == 0) { 
             switchArg = i + 1; 
             break; 
         } 
     } 
     switch (switchArg) { 
     case 1: //cd 
-		strcpy(path,args[1]);
+		strcpy(path,command->cmdArgs[1]);
 		if (chdir(path) == 0) {
-			exit(0);
+			command->status = 0;
 		} else {
 			fprintf(stderr, "Error: no such directory\n");
-			exit(1);
+			command->status = 1;
 		}
         return 1; 
     case 2: // pwd
-		fprintf(stderr, "%s\n", getcwd(s, 100));
-		exit(0);
+		fprintf(stdout, "%s\n", getcwd(s, 100));
+		command->status = 0;;
         return 1; 
     default: 
         break; 
-    } 
+    }
+
     return 0; 
 } 
 
 // Execute single command 
 int execute (Pipe *mypipe){
-	int status = 0;
-	int pid = fork();
-	if (pid == 0){
-		/* Child process, use execvp to execute command on env variable*/
-		// Check if command need input redirection 
-		if (strlen(command__indirect(mypipe->commands[0])) != 0){
-			int fd;
-			fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
-			dup2(fd, 0);
-			close(fd);
-		}
-		// Check if command need output redirection 
-		if (strlen(command__outdirect(mypipe->commands[0])) != 0){
-			int fd;
-			fd = open(command__outdirect(mypipe->commands[0]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-			// change the input stream to fd
-			dup2(fd, 1);
-			close(fd);
-		}
-		// execute if command program is not built in commands 
-		if (myCmdHandler(command__cmdArgs(mypipe->commands[0])) == 0){ 
+	if (myCmdHandler(mypipe->commands[0]) == 0){
+		int status = 0;
+		int pid = fork();
+		if (pid == 0){
+			/* Child process, use execvp to execute command on env variable*/
+			// Check if command need input redirection 
+			if (strlen(command__indirect(mypipe->commands[0])) != 0){
+				int fd;
+				fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
+				dup2(fd, 0);
+				close(fd);
+			}
+			// Check if command need output redirection 
+			if (strlen(command__outdirect(mypipe->commands[0])) != 0){
+				int fd;
+				fd = open(command__outdirect(mypipe->commands[0]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+				// change the input stream to fd
+				dup2(fd, 1);
+				close(fd);
+			}
+			// execute if command program is not built in commands 
 			execvp(command__program(mypipe->commands[0]), command__cmdArgs(mypipe->commands[0]));
 			// execvp will not return (unless Args[0] is not a valid executable file)
 			fprintf(stderr, "Error: command not found\n");
 			exit(-1); 
+		} else if (pid == -1) {
+			/*fork error printing*/
+			perror("fork fails to spawn a child");
+			exit(-1);
+		}else{
+			// parent process, waits for child execution
+			wait(&status);
+			mypipe->commands[0]->status = WEXITSTATUS(status);
 		}
-	} else if (pid == -1) {
-		/*fork error printing*/
-		perror("fork fails to spawn a child");
-		exit(-1);
-	} else {
-		// parent process, waits for child execution
-		wait(&status);
-		if (strcmp(command__program(mypipe->commands[0]), "cd")==0)
-		{
-			char path[150];
-			strcpy(path,command__cmdArgs(mypipe->commands[0])[1]);
-			chdir(path);
-		}
-		// fprintf(stderr,"status: %d\n",WEXITSTATUS(status));
-		if (WEXITSTATUS(status) != 255){
-			fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(mypipe->commands[0]),WEXITSTATUS(status));
-		}
+	}
+	if (mypipe->commands[0]->status != 255){
+		fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(mypipe->commands[0]),mypipe->commands[0]->status);
 	}
 	return 1;
 }
@@ -220,7 +214,6 @@ int executePipe (Pipe *mypipe,char *user_input){
 		// Redirect input : first command : 0/input file, later command : pipe[0]
 		dup2(in_fd, 0);
 		close(in_fd); // close now unused file descriptor 
-
 		// Redirect output 
 		if (i == mypipe->cmdCount - 1){
 			// for last command : output can be redirect to output file 
@@ -253,11 +246,13 @@ int executePipe (Pipe *mypipe,char *user_input){
 		}else if (pids[i] == 0){
 			// received for child process 
 			// execute if command program is not built in commands 
-			if (myCmdHandler(command__cmdArgs(mypipe->commands[i])) == 0){ 
+			if (myCmdHandler(mypipe->commands[i]) == 0){ 
 				execvp(command__program(mypipe->commands[i]), command__cmdArgs(mypipe->commands[i]));
 				// execvp will not return (unless Args[0] is not a valid executable file)
 				fprintf(stderr, "Error: command not found\n");
 				exit(-1); // child process will not call fork()
+			}else{
+				exit(mypipe->commands[i]->status);
 			}
 		}
 	} // for 
