@@ -28,6 +28,7 @@ void Pipe__init(Pipe* self, char *user_input) {
     self->commands = (Command **)malloc(sizeof(Command*) * self->cmdCount);
     for (int i=0; i < self->cmdCount;i++){
 		self->commands[i] = Command__create(pipes[i]);
+      self->commands[i]->cmdIndex = i;
     }
  }
 
