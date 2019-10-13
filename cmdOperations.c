@@ -40,6 +40,10 @@ void command__init(Command* self, char *user_input) {
     token = strtok_r(user_input, s, &saveSpace);
     if (token != NULL){
         parseCount++;
+    }else{
+      fprintf(stderr, "Error: missing command\n");
+      self->FAIL = true;
+      return;
     }
     while (token != NULL)
     { 

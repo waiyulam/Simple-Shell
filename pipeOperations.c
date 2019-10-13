@@ -30,6 +30,10 @@ void Pipe__init(Pipe* self, char *user_input) {
       for (int i=0; i < self->cmdCount;i++){
          self->commands[i] = Command__create(pipes[i]);
          self->commands[i]->cmdIndex = i;
+         if (command__Fail(self->commands[i])){
+				self->FAIL = true;
+            return;
+			}
       }
     }else{
        // mislocated background 
@@ -77,17 +81,36 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
    }
 
    // Parsing command line with "|"
+   if (str == NULL){
+		fprintf(stderr,"Error: missing command\n");
+      return 0;
+	}
+   char *temp_str = (char *)malloc(strlen(str) * sizeof(char));
+   strcpy(temp_str,str);
+
    int pipeCount = 0;
    char* token;
    // save pointer 
    char* savePipe = NULL;
    token = strtok_r(str, "|", &savePipe);
+   if (token == NULL){
+      fprintf(stderr,"Error: missing command\n");
+      return 0;
+   }
    while (token != NULL)
    { 
+      // fprintf(stderr,"token: %s\n",token);
       strpiped[pipeCount] = (char *)malloc(512 * sizeof(char));
       strpiped[pipeCount] = token;
       pipeCount++;
       token = strtok_r(NULL, "|", &savePipe);
+   }
+
+   int temp = 0; // count the occurence of "|" in command line 
+   for (temp=0; temp_str[temp]; temp_str[temp]=='|' ? temp++ : *temp_str++);
+   if (pipeCount < temp+1){
+      fprintf(stderr,"Error: missing command\n");
+      return 0;
    }
    mypipe->cmdCount = pipeCount;
    return 1; 

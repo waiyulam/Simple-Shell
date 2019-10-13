@@ -31,6 +31,9 @@ int main(int argc, char *argv[])
 		printf("sshell$ ");
 		// read line from user input currently assume just command
 		getline(&user_input, &buffersize, stdin);
+		if (user_input[0] == '\n'){
+			continue;
+		}
 		// Process string removes new line character, mark the end by end of line character
 		if (user_input[strlen(user_input)-1] == '\n'){ user_input[strlen(user_input)-1] = '\0'; }
 		// Create myPipe data structure : parsing the string and store commands
@@ -50,17 +53,6 @@ int main(int argc, char *argv[])
 		// Empty string 
 		if (myPipe->cmdCount == 0){
 			continue;
-		}
-		// Check if all commands are valid 
-		int valid_command = 1;
-		for (int i=0; i < myPipe->cmdCount;i++){
-			if (command__Fail(myPipe->commands[i])){
-				valid_command = 0;
-				break;
-			}
-		}
-		if (valid_command == 0){
-			continue; // error 
 		}
 		// Execute if there is single command 
 		if (myPipe->cmdCount == 1){
@@ -154,7 +146,7 @@ int execute (Pipe *mypipe){
 			execvp(command__program(mypipe->commands[0]), command__cmdArgs(mypipe->commands[0]));
 			// execvp will not return (unless Args[0] is not a valid executable file)
 			fprintf(stderr, "Error: command not found\n");
-			exit(-1); 
+			exit(1); 
 		} else if (pid == -1) {
 			/*fork error printing*/
 			perror("fork fails to spawn a child");
@@ -250,7 +242,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 				execvp(command__program(mypipe->commands[i]), command__cmdArgs(mypipe->commands[i]));
 				// execvp will not return (unless Args[0] is not a valid executable file)
 				fprintf(stderr, "Error: command not found\n");
-				exit(-1); // child process will not call fork()
+				exit(1); // child process will not call fork()
 			}else{
 				exit(mypipe->commands[i]->status);
 			}
