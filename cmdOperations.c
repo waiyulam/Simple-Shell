@@ -43,9 +43,13 @@ void command__init(Command* self, char *user_input) {
     // Different strings may be parsed concurrently using sequences of calls to strtok_r() that specify different saveptr arguments.
     // Don't use strtok : not thread safe 
     token = strtok_r(user_input, s, &saveSpace);
-    parseCount++;
+    if (token != NULL){
+        parseCount++;
+    }
     while (token != NULL)
     { 
+      /* Parsing the current command line */
+
       // Error : too many arguments 
       if (parseCount > 16){
          fprintf(stderr, "Error: too many process arguments\n");
@@ -69,7 +73,9 @@ void command__init(Command* self, char *user_input) {
          }
          if (temp == NULL){
             token = strtok_r(NULL,s,&saveSpace);
-            parseCount++;
+            if (token != NULL){
+               parseCount++;
+            }
             if (token == NULL){
                // example: echo gogo > 
                fprintf(stderr, "Error: no output file\n");
@@ -120,7 +126,9 @@ void command__init(Command* self, char *user_input) {
          }
          if (temp == NULL){
             token = strtok_r(NULL,s,&saveSpace);
-            parseCount++;
+            if (token != NULL){
+               parseCount++;
+            }
             if (token == NULL){
                // example: echo gogo < 
                fprintf(stderr, "Error: no input file\n");
@@ -158,7 +166,9 @@ void command__init(Command* self, char *user_input) {
         argsCount++;
       }
       token = strtok_r(NULL, s,&saveSpace);
-      parseCount++;
+      if (token != NULL){
+        parseCount++;
+      }
     }
 
     // Initialize program name

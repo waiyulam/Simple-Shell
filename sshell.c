@@ -9,16 +9,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "pipeOperations.h"
 #include "cmdOperations.h"
+
 
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
 extern int errno;
-
-int parseCmd(char* cmd, char** cmdArgs);
-int redirectionCondCheck(char* input);
-int redirection(char* input, int cond);
-void removeSpaces(char* input, char* output);
 
 int main(int argc, char *argv[])
 {
@@ -30,6 +27,14 @@ int main(int argc, char *argv[])
 		printf("sshell$ ");
 		// read line from user input currently assume just command
 		getline(&user_input, &buffersize, stdin);
+
+		Pipe* myPipe = Pipe__create(user_input);
+		for (int i=0; i < myPipe->cmdCount;i++){
+     		for (int j =0; j < myPipe->commands[i]->numArgs;j++){
+        	fprintf(stderr,"%s ",myPipe->commands[i]->cmdArgs[j]);
+      		}		
+			fprintf(stderr,"\n");
+   		}
 
 		Command* command = Command__create(user_input);
 
@@ -116,4 +121,6 @@ int main(int argc, char *argv[])
 			Command__destroy(command);
 	}
 }
+
+
 
