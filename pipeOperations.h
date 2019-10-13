@@ -12,8 +12,10 @@ typedef struct {
     Command **commands;
     // cmdCount is a variable that keep track of number of command lines 
     int cmdCount;
-
-
+    // background variable is to tell if the command line is background commands 
+    bool background;
+    // boolean variable indicate if command constructor succeed or fail
+    bool FAIL;
 } Pipe;
 
 // Constructor (without allocation)
@@ -30,7 +32,7 @@ void Pipe__destroy(Pipe* Pipe);
 
 
 // function for finding pipe 
-int parsePipe(char* str, char** strpiped) ;
+int parsePipe(Pipe *mypipe, char* str, char** strpiped) ;
 
 
 

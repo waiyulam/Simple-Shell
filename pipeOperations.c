@@ -15,20 +15,25 @@
 // Constructor (without allocation)
 void Pipe__init(Pipe* self, char *user_input) {
     char *tempArgs[512];
+    self->background = false;
     // parse the user_input to multiple command 
-    self->cmdCount = parsePipe(user_input,tempArgs);
+    if (parsePipe(self,user_input,tempArgs)){
+      self->FAIL = false;
+      char **pipes = (char **)malloc(sizeof(char*) * self->cmdCount );
+      for (int i = 0; i < self->cmdCount ; i++){
+            pipes[i] = (char *)malloc(512 * sizeof(char));
+            strcpy(pipes[i], tempArgs[i]);
+            //printf("%s\n",pipes[i]);
+         }
 
-    char **pipes = (char **)malloc(sizeof(char*) * self->cmdCount );
-    for (int i = 0; i < self->cmdCount ; i++){
-         pipes[i] = (char *)malloc(512 * sizeof(char));
-		   strcpy(pipes[i], tempArgs[i]);
-         //printf("%s\n",pipes[i]);
-		}
-
-    self->commands = (Command **)malloc(sizeof(Command*) * self->cmdCount);
-    for (int i=0; i < self->cmdCount;i++){
-		self->commands[i] = Command__create(pipes[i]);
-      self->commands[i]->cmdIndex = i;
+      self->commands = (Command **)malloc(sizeof(Command*) * self->cmdCount);
+      for (int i=0; i < self->cmdCount;i++){
+         self->commands[i] = Command__create(pipes[i]);
+         self->commands[i]->cmdIndex = i;
+      }
+    }else{
+       // mislocated background 
+       self->FAIL = true;
     }
  }
 
@@ -52,26 +57,40 @@ void Pipe__destroy(Pipe* Pipe) {
 }
 
 // function for finding pipe 
-int parsePipe(char* str, char** strpiped) 
+int parsePipe(Pipe *mypipe, char* str, char** strpiped) 
 { 
-    int pipeCount = 0;
-    char* token;
-    // save pointer 
-    char* savePipe = NULL;
-    token = strtok_r(str, "|", &savePipe);
-    if (token == NULL){
-        return 0; // returns zero if no command is found. 
-    }
+   // Find background command flag 
+   char *background;
+   int index;
+   background = strchr(str, '&');
+   if (background != NULL){
+      index = (int)(background - str);
+      // The background sign may only appear as the last token of a command line.
+      if (index == (strlen(str)-1)){
+         str = strtok(str,"&");
+         mypipe->background = true;
+      }else{
+         //Error: mislocated background sign
+         fprintf(stderr,"Error: mislocated background sign\n");
+         return 0;
+      }
+   }
 
-    while (token != NULL)
-     { 
-        strpiped[pipeCount] = (char *)malloc(512 * sizeof(char));
-        strpiped[pipeCount] = token;
-        pipeCount++;
-        token = strtok_r(NULL, "|", &savePipe);
-     }
-
-    return pipeCount; 
+   // Parsing command line with "|"
+   int pipeCount = 0;
+   char* token;
+   // save pointer 
+   char* savePipe = NULL;
+   token = strtok_r(str, "|", &savePipe);
+   while (token != NULL)
+   { 
+      strpiped[pipeCount] = (char *)malloc(512 * sizeof(char));
+      strpiped[pipeCount] = token;
+      pipeCount++;
+      token = strtok_r(NULL, "|", &savePipe);
+   }
+   mypipe->cmdCount = pipeCount;
+   return 1; 
 } 
   
 

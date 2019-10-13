@@ -43,11 +43,15 @@ int main(int argc, char *argv[])
 			perror("malloc fails to alloscate memory");
 			exit(1);
 		}
+		// Check if command line are valid 
+		if (myPipe->FAIL){
+			continue;
+		}
 		// Empty string 
 		if (myPipe->cmdCount == 0){
 			continue;
 		}
-		// Check if the commands are valid 
+		// Check if all commands are valid 
 		int valid_command = 1;
 		for (int i=0; i < myPipe->cmdCount;i++){
 			if (command__Fail(myPipe->commands[i])){
