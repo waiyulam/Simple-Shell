@@ -46,14 +46,18 @@ int main(int argc, char *argv[])
 			printf("%s", user_input);
 			fflush(stdout);
 		}
-		if (user_input[0] == '\n'){ continue; } // no command and user press enter 
+		if (user_input[0] == '\n' || user_input[0] == '\0'){ 
+			continue; 
+		} // no command and user press enter 
 		// Remove trailing newline from command line
+
 		if (user_input[strlen(user_input)-1] == '\n'){ user_input[strlen(user_input)-1] = '\0'; }
 
 		// Create Pipe data structure : parsing the string and store commands
 		char* temp = (char *)malloc(buffersize * sizeof(char)); 
 		strcpy(temp,user_input); // To deep copy the user input : avoid pasring change original string
-
+		// fprintf(stderr,"commands : %s\n",user_input);
+		
 		Pipe* curPipe = cmdHead; // current pipe 
 		// allocate new pipe 
 		if (cmdHead == NULL){
@@ -75,31 +79,14 @@ int main(int argc, char *argv[])
 			}
 			curPipe = cmdHead;
 		}else{
+			// Find the tail of linked list 
 			Pipe* prevPipe = NULL;
 			while (curPipe != NULL)
 			{
-				int status;
 				prevPipe = curPipe;
-				/*
-				* WNOHANG:	return immediately if no child has exited
-				* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
-				*/
-				int finishedCmd = 0; // counting the number of finished process in current pipe 
-				// wait until last command finished
-				// Multiple program wiht pipe line 
-				for (int i = 0; i< curPipe->cmdCount;i++){
-					if (waitpid(curPipe->commands[i]->pid,&status,WNOHANG) != 0){ 
-						finishedCmd++;
-						curPipe->commands[i]->status = WEXITSTATUS(status);
-					}
-				}
-				if (finishedCmd == curPipe->cmdCount){
-					// All the program has been done 
-					curPipe->FINISHED = true;
-				}
 				curPipe = curPipe->nextPipe;
 			}
-
+			// Put new command line into tail of linked list 
 			curPipe = Pipe__create(temp);
 			// Handle error command line
 			// Check if parsing command line are valid for error handling
@@ -118,12 +105,12 @@ int main(int argc, char *argv[])
 				curPipe = NULL;
 				continue; 
 			}
-
 			// linked list : tail is curPipe	
 			prevPipe->nextPipe = curPipe; 
 		}
 		// command line process created and running on the foreground/background
 		activeJobs++; 
+		// fprintf(stderr,"commands : %s\n",curPipe->commands[0]->program);
 
 		// Execute if there is single command 
 		if (curPipe->cmdCount == 1){
@@ -134,9 +121,29 @@ int main(int argc, char *argv[])
 				return EXIT_SUCCESS;
 			}
 			// check if any command line finished and print 
+			int status;
 			Pipe *temp = cmdHead;
 			Pipe *prevTemp = NULL;
 			while(temp){
+				// First check if cuurent pipe has all command finished 
+				if (!temp->FINISHED){ // only check for command line not finished -> call waitpid twice will change status
+					/* WNOHANG:	return immediately if no child has exited
+					* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
+					*/
+					int finishedCmd = 0; // counting the number of finished process in current pipe 
+					// wait until last command finished
+					// Multiple program wiht pipe line 
+					for (int i = 0; i< temp->cmdCount;i++){
+						if (waitpid(temp->commands[i]->pid,&status,WNOHANG) != 0){ 
+							finishedCmd++;
+							temp->commands[i]->status = WEXITSTATUS(status);
+						}
+					}
+					if (finishedCmd == temp->cmdCount){
+						// All the program has been done 
+						temp->FINISHED = true;
+					}
+				}
 				if (temp->FINISHED == true){ 
 					activeJobs--;
 					fprintf(stderr, "+ completed \'%s\' [%d]\n",temp->user_input,temp->commands[0]->status);
@@ -162,9 +169,29 @@ int main(int argc, char *argv[])
 				// Exit shell
 				return EXIT_SUCCESS;
 			}
+			int status;
 			Pipe *temp = cmdHead;
 			Pipe *prevTemp = NULL;
 			while(temp){
+				// First check if cuurent pipe has all command finished 
+				if (!temp->FINISHED){ // only check for command line not finished -> call waitpid twice will change status
+					/* WNOHANG:	return immediately if no child has exited
+					* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
+					*/
+					int finishedCmd = 0; // counting the number of finished process in current pipe 
+					// wait until last command finished
+					// Multiple program wiht pipe line 
+					for (int i = 0; i< temp->cmdCount;i++){
+						if (waitpid(temp->commands[i]->pid,&status,WNOHANG) != 0){ 
+							finishedCmd++;
+							temp->commands[i]->status = WEXITSTATUS(status);
+						}
+					}
+					if (finishedCmd == temp->cmdCount){
+						// All the program has been done 
+						temp->FINISHED = true;
+					}
+				}
 				if (temp->FINISHED == true){ 
 					activeJobs--;
 					fprintf(stderr, "+ completed \'%s\' ",temp->user_input);
