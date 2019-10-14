@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "pipeOperations.h"
 #include "cmdOperations.h"
 
@@ -26,11 +27,20 @@ int main(int argc, char *argv[])
 	while (1)
 	{	
 		// Maximum input line size is 512
-		size_t buffersize = 512;
+		int buffersize = 512;
 		char* user_input = (char *)malloc(buffersize * sizeof(char));
 		printf("sshell$ ");
-		// read line from user input currently assume just command
-		getline(&user_input, &buffersize, stdin);
+		fflush(stdout);
+		
+		/* Get command line */
+		fgets(user_input, buffersize, stdin);
+		/* Print command line if we're not getting stdin from the
+		 * terminal */
+		if (!isatty(STDIN_FILENO)) {
+			printf("%s", user_input);
+			fflush(stdout);
+		}
+
 		if (user_input[0] == '\n'){
 			continue;
 		}
@@ -59,7 +69,7 @@ int main(int argc, char *argv[])
 			// exit the shell
 			if (strcmp(command__program(myPipe->commands[0]), "exit") == 0){
 				fprintf(stderr, "Bye...\n");
-				exit(0);
+				return EXIT_SUCCESS;
 			}
 			// executing .. 
 			execute(myPipe);
@@ -71,7 +81,7 @@ int main(int argc, char *argv[])
 			for (int i=0; i < myPipe->cmdCount;i++){
 				if (strcmp(command__program(myPipe->commands[i]), "exit") == 0){
 					fprintf(stderr, "Bye...\n");
-					exit(0);
+					return EXIT_SUCCESS;
 				}
 			} // for 
 			// executing .. 
@@ -79,6 +89,8 @@ int main(int argc, char *argv[])
 			Pipe__destroy(myPipe);
     	} // if else 
 	} // while loop 
+	
+	return EXIT_SUCCESS;
 } // main 
 
 
@@ -263,7 +275,6 @@ int executePipe (Pipe *mypipe,char *user_input){
 			return 0;
 		} // if 
 	}//for 
-
 	fprintf(stderr, "+ completed \'%s\' ",user_input);
 	for (int i=0;i<mypipe->cmdCount;i++){
 		if (WEXITSTATUS(status[i])!= EXIT_SUCCESS){

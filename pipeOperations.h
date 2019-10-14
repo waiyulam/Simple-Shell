@@ -12,7 +12,7 @@ typedef struct {
     Command **commands;
     // cmdCount is a variable that keep track of number of command lines 
     int cmdCount;
-    // background variable is to tell if the command line is background commands 
+    // background variable is to tell if the command line is background command 
     bool background;
     // boolean variable indicate if command constructor succeed or fail
     bool FAIL;
