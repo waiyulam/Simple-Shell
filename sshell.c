@@ -78,16 +78,28 @@ int main(int argc, char *argv[])
 			Pipe* prevPipe = NULL;
 			while (curPipe != NULL)
 			{
+				int status;
 				prevPipe = curPipe;
 				/*
 				* WNOHANG:	return immediately if no child has exited
 				* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
 				*/
-				if (waitpid(curPipe->commands[0]->pid,NULL,WNOHANG) != 0){ 
-					curPipe->FINISHED = true; // set zombie process to finished 
+				int finishedCmd = 0; // counting the number of finished process in current pipe 
+				// wait until last command finished
+				// Multiple program wiht pipe line 
+				for (int i = 0; i< curPipe->cmdCount;i++){
+					if (waitpid(curPipe->commands[i]->pid,&status,WNOHANG) != 0){ 
+						finishedCmd++;
+						curPipe->commands[i]->status = WEXITSTATUS(status);
+					}
+				}
+				if (finishedCmd == curPipe->cmdCount){
+					// All the program has been done 
+					curPipe->FINISHED = true;
 				}
 				curPipe = curPipe->nextPipe;
 			}
+
 			curPipe = Pipe__create(temp);
 			// Handle error command line
 			// Check if parsing command line are valid for error handling
@@ -106,9 +118,12 @@ int main(int argc, char *argv[])
 				curPipe = NULL;
 				continue; 
 			}
-			prevPipe->nextPipe = curPipe; // linked list : tail is curPipe	
+
+			// linked list : tail is curPipe	
+			prevPipe->nextPipe = curPipe; 
 		}
-		activeJobs++;
+		// command line process created and running on the foreground/background
+		activeJobs++; 
 
 		// Execute if there is single command 
 		if (curPipe->cmdCount == 1){
@@ -141,16 +156,40 @@ int main(int argc, char *argv[])
 		}
 		// execute multiple commands
 		else{
-			// Exit if any commands has exit flag 
-			for (int i=0; i < curPipe->cmdCount;i++){
-				if (strcmp(command__program(curPipe->commands[i]), "exit") == 0){
-					fprintf(stderr, "Bye...\n");
-					return EXIT_SUCCESS;
-				}
-			} // for 
 			// executing .. 
 			executePipe(curPipe,user_input);
-			curPipe = NULL;
+			if (EXIT){
+				// Exit shell
+				return EXIT_SUCCESS;
+			}
+			Pipe *temp = cmdHead;
+			Pipe *prevTemp = NULL;
+			while(temp){
+				if (temp->FINISHED == true){ 
+					activeJobs--;
+					fprintf(stderr, "+ completed \'%s\' ",temp->user_input);
+					for (int i=0;i< temp->cmdCount;i++){
+						if ( WEXITSTATUS(temp->commands[i]->status) != 0){
+							fprintf(stderr,"[%d]",temp->commands[i]->cmdIndex+1);
+						}else{
+							fprintf(stderr,"[%d]",WEXITSTATUS(temp->commands[i]->status));
+						}
+					}
+					fprintf(stderr, "\n");
+					if (prevTemp == NULL) { // prevTemp of head is null
+						cmdHead = cmdHead->nextPipe;
+						prevTemp = NULL;
+						temp = temp->nextPipe;
+					}else{
+						prevTemp->nextPipe = temp->nextPipe;
+						temp = temp->nextPipe;
+					}	
+				}else{
+					prevTemp = temp;
+					temp = temp->nextPipe;
+				}
+			}
+
     	} // if else 
 	} // while loop 
 
@@ -345,6 +384,8 @@ int executePipe (Pipe *mypipe,char *user_input){
 			}else{
 				exit(mypipe->commands[i]->status);
 			}
+		}else{
+			mypipe->commands[i]->pid = pids[i];// keep track of all child process pid 
 		}
 	} // for 
 
@@ -354,21 +395,16 @@ int executePipe (Pipe *mypipe,char *user_input){
 	close(myStdin);
 	close(mySdtout);
 
-	/* wait until all child process compledted */ 
-	for (int i=0;i<mypipe->cmdCount;i++){
-		waitpid(pids[i],&status[i],0); 
-		// check status for all child process 
-	}//for 
-
-	fprintf(stderr, "+ completed \'%s\' ",user_input);
-	for (int i=0;i<mypipe->cmdCount;i++){
-		if ( WEXITSTATUS(status[i]) != 0){
-		fprintf(stderr,"[%d]",mypipe->commands[i]->cmdIndex+1);
-		}else{
-		fprintf(stderr,"[%d]",WEXITSTATUS(status[i]));
-		}
+	if (!mypipe->background){
+		/* wait until all child process compledted */ 
+		for (int i=0;i<mypipe->cmdCount;i++){
+			waitpid(pids[i],&status[i],0); 
+			mypipe->commands[i]->status = WEXITSTATUS(status[i]);
+			// check status for all child process 
+		}//for
+		mypipe->FINISHED = true;
 	}
-	fprintf(stderr, "\n");
+	
 	return 1;
 }
 

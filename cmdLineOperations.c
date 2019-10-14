@@ -18,6 +18,7 @@ void Pipe__init(Pipe* self, char *user_input) {
     self->background = false;
     self->nextPipe = NULL;
     self->user_input = (char *)malloc(512 * sizeof(char)); 
+
     strcpy(self->user_input,user_input);
     // parse the user_input to multiple command 
     if (parsePipe(self,user_input,tempArgs)){
