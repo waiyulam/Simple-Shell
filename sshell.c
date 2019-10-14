@@ -270,7 +270,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 	for (int i=0;i<mypipe->cmdCount;i++){
 		waitpid(pids[i],&status[i],0); // wait until all child process compledted 
 		// check status for all child process 
-		if (WEXITSTATUS(status) == 255){
+		if (WEXITSTATUS(status[i]) == 255){
 			// error for command not found when execute child process 
 			return 0;
 		} // if 
