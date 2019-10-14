@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 		char* user_input = (char *)malloc(buffersize * sizeof(char));
 		printf("sshell$ ");
 		fflush(stdout);
-		
+
 		/* Get command line */
 		fgets(user_input, buffersize, stdin);
 		/* Print command line if we're not getting stdin from the
@@ -277,7 +277,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 	}//for 
 	fprintf(stderr, "+ completed \'%s\' ",user_input);
 	for (int i=0;i<mypipe->cmdCount;i++){
-		if (WEXITSTATUS(status[i])!= EXIT_SUCCESS){
+		if ( WEXITSTATUS(status[i]) != 0){
 		fprintf(stderr,"[%d]",mypipe->commands[i]->cmdIndex+1);
 		}else{
 		fprintf(stderr,"[%d]",WEXITSTATUS(status[i]));
