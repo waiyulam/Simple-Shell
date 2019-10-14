@@ -29,8 +29,7 @@ int executePipe (Pipe *mypipe,char *user_input);
 int main(int argc, char *argv[])
 {
 	// The head of command line for command line linked list 
-	Pipe* cmdHead;
-
+	Pipe* cmdHead = NULL;
 	while (1)
 	{	
 		// Maximum input line size is 512
@@ -76,7 +75,7 @@ int main(int argc, char *argv[])
 			}
 			curPipe = cmdHead;
 		}else{
-			Pipe* prevPipe;
+			Pipe* prevPipe = NULL;
 			while (curPipe != NULL)
 			{
 				prevPipe = curPipe;
