@@ -1,16 +1,1 @@
-total 264
--rw-r--r--  1 waiyu  staff    252 Oct  9 11:13 README.md
--rw-r--r--  1 waiyu  staff   7999 Oct 13 11:05 cmdOperations.c
--rw-r--r--  1 waiyu  staff   1677 Oct 12 18:28 cmdOperations.h
--rw-r--r--  1 waiyu  staff  10276 Oct 13 12:59 cmdOperations.o
--rw-r--r--  1 waiyu  staff    387 Oct 12 18:54 makefile
--rw-r--r--  1 waiyu  staff   8541 Oct 13 12:04 oldsshell.c
--rw-r--r--  1 waiyu  staff   1956 Oct 13 01:45 pipeOperations.c
--rw-r--r--  1 waiyu  staff    879 Oct 12 18:26 pipeOperations.h
--rw-r--r--  1 waiyu  staff   5188 Oct 13 12:59 pipeOperations.o
--rwxr-xr-x  1 waiyu  staff  20948 Oct 13 12:59 sshell
--rw-r--r--  1 waiyu  staff   8167 Oct 13 12:59 sshell.c
--rw-r--r--  1 waiyu  staff  12420 Oct 13 12:59 sshell.o
--rwxr-xr-x  1 waiyu  staff  18024 Oct 10 15:55 sshell_ref
--rw-r--r--  1 waiyu  staff    427 Oct 12 17:46 strtokTemplate.c
--rwx------  1 waiyu  staff      0 Oct 13 13:00 temp.txt
+/Users/waiyu/Desktop/davis/Fall2019/Ecs150/HW1_SIMPLE_SHELL/Simple-Shell

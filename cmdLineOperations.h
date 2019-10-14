@@ -1,13 +1,18 @@
 // This data structure is for pipeline that manipulate one or more command 
 
+/* 
+ * This is data structure for one command line process 
+ */
 #include <stdlib.h>
 #include <stdio.h>
 #include "cmdOperations.h"
 
-#ifndef PIPEOPERATIONS_H_
-#define PIPEOPERATIONS_H_
+#ifndef CMDLINEOPERATIONS_H_
+#define CMDLINEOPERATIONS_H_
 
-typedef struct {
+typedef struct Pipe{
+    // store the user input for command line 
+    char* user_input;
     // this is command array and each element contains one command line execution
     Command **commands;
     // cmdCount is a variable that keep track of number of command lines 
@@ -16,6 +21,10 @@ typedef struct {
     bool background;
     // boolean variable indicate if command constructor succeed or fail
     bool FAIL;
+    // boolean variable indicate if pipe command finish execute 
+    bool FINISHED;
+    // Point to next command line 
+    struct Pipe *nextPipe;
 } Pipe;
 
 // Constructor (without allocation)
@@ -36,4 +45,4 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped) ;
 
 
 
-#endif /* PIPEOPERATIONS_H_ */
+#endif /* CMDLINEOPERATIONS_H_ */

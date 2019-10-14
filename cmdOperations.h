@@ -22,6 +22,8 @@ typedef struct {
     bool FAIL;
     // cmdIndex variable is to keep track of the index of command line if user input has multiple cmd with pipe
     int cmdIndex;
+    // Collect pid for command 
+    int pid;
     // Collect status for command 
     int status;
 

@@ -10,20 +10,27 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "pipeOperations.h"
+#include "cmdLineOperations.h"
 #include "cmdOperations.h"
 
 
 // currently assume maximum command line argument is 16
 #define Max_ARG 16
 extern int errno;
+// keep track if sshell exit 
+bool EXIT = false; 
+// Keep track of active jobs 
+int activeJobs = 0;
 int myCmdHandler(Command *command) ;
 int redirection(Command *command,int pipeCount);
-int execute (Pipe *mypipe);
+void execute (Pipe *mypipe,char *user_input);
 int executePipe (Pipe *mypipe,char *user_input);
 
 int main(int argc, char *argv[])
 {
+	// The head of command line for command line linked list 
+	Pipe* cmdHead;
+
 	while (1)
 	{	
 		// Maximum input line size is 512
@@ -40,56 +47,115 @@ int main(int argc, char *argv[])
 			printf("%s", user_input);
 			fflush(stdout);
 		}
-
-		if (user_input[0] == '\n'){
-			continue;
-		}
-		// Process string removes new line character, mark the end by end of line character
+		if (user_input[0] == '\n'){ continue; } // no command and user press enter 
+		// Remove trailing newline from command line
 		if (user_input[strlen(user_input)-1] == '\n'){ user_input[strlen(user_input)-1] = '\0'; }
-		// Create myPipe data structure : parsing the string and store commands
-		char* temp = (char *)malloc(buffersize * sizeof(char));
-		strcpy(temp,user_input);
-		Pipe* myPipe = Pipe__create(temp);
-		// Check malloc allocation success
-		if (myPipe == NULL)
-		{ 
-			perror("malloc fails to alloscate memory");
-			exit(1);
+
+		// Create Pipe data structure : parsing the string and store commands
+		char* temp = (char *)malloc(buffersize * sizeof(char)); 
+		strcpy(temp,user_input); // To deep copy the user input : avoid pasring change original string
+
+		Pipe* curPipe = cmdHead; // current pipe 
+		// allocate new pipe 
+		if (cmdHead == NULL){
+			cmdHead = Pipe__create(temp);	
+			// Check malloc allocation success
+			if (cmdHead == NULL)
+			{ 
+				perror("malloc fails to alloscate memory");
+				exit(1);
+			}
+			if (cmdHead->FAIL){ 
+				cmdHead = NULL;
+				continue; 
+				}
+			// Empty string 
+			if (cmdHead->cmdCount == 0){ 
+				cmdHead = NULL;
+				continue; 
+			}
+			curPipe = cmdHead;
+		}else{
+			Pipe* prevPipe;
+			while (curPipe != NULL)
+			{
+				prevPipe = curPipe;
+				/*
+				* WNOHANG:	return immediately if no child has exited
+				* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
+				*/
+				if (waitpid(curPipe->commands[0]->pid,NULL,WNOHANG) != 0){ 
+					curPipe->FINISHED = true; // set zombie process to finished 
+				}
+				curPipe = curPipe->nextPipe;
+			}
+			curPipe = Pipe__create(temp);
+			// Handle error command line
+			// Check if parsing command line are valid for error handling
+			// Check malloc allocation success
+			if (curPipe == NULL)
+			{ 
+				perror("malloc fails to alloscate memory");
+				exit(1);
+			} 
+			if (curPipe->FAIL){ 
+				curPipe = NULL;
+				continue; 
+				}
+			// Empty string 
+			if (curPipe->cmdCount == 0){ 
+				curPipe = NULL;
+				continue; 
+			}
+			prevPipe->nextPipe = curPipe; // linked list : tail is curPipe	
 		}
-		// Check if command line are valid 
-		if (myPipe->FAIL){
-			continue;
-		}
-		// Empty string 
-		if (myPipe->cmdCount == 0){
-			continue;
-		}
+		activeJobs++;
+
 		// Execute if there is single command 
-		if (myPipe->cmdCount == 1){
-			// exit the shell
-			if (strcmp(command__program(myPipe->commands[0]), "exit") == 0){
-				fprintf(stderr, "Bye...\n");
+		if (curPipe->cmdCount == 1){
+			// executing .. 
+			execute(curPipe,user_input);
+			if (EXIT){
+				// Exit shell
 				return EXIT_SUCCESS;
 			}
-			// executing .. 
-			execute(myPipe);
-			Pipe__destroy(myPipe);
+			// check if any command line finished and print 
+			Pipe *temp = cmdHead;
+			Pipe *prevTemp = NULL;
+			while(temp){
+				if (temp->FINISHED == true){ 
+					activeJobs--;
+					fprintf(stderr, "+ completed \'%s\' [%d]\n",temp->user_input,temp->commands[0]->status);
+					if (prevTemp == NULL) { // prevTemp of head is null
+						cmdHead = cmdHead->nextPipe;
+						prevTemp = NULL;
+						temp = temp->nextPipe;
+					}else{
+						prevTemp->nextPipe = temp->nextPipe;
+						temp = temp->nextPipe;
+					}	
+				}else{
+					prevTemp = temp;
+					temp = temp->nextPipe;
+				}
+			}
 		}
 		// execute multiple commands
 		else{
 			// Exit if any commands has exit flag 
-			for (int i=0; i < myPipe->cmdCount;i++){
-				if (strcmp(command__program(myPipe->commands[i]), "exit") == 0){
+			for (int i=0; i < curPipe->cmdCount;i++){
+				if (strcmp(command__program(curPipe->commands[i]), "exit") == 0){
 					fprintf(stderr, "Bye...\n");
 					return EXIT_SUCCESS;
 				}
 			} // for 
 			// executing .. 
-			executePipe(myPipe,user_input);
-			Pipe__destroy(myPipe);
+			executePipe(curPipe,user_input);
+			curPipe = NULL;
     	} // if else 
 	} // while loop 
-	
+
+	Pipe__destroy(cmdHead);
 	return EXIT_SUCCESS;
 } // main 
 
@@ -98,13 +164,13 @@ int main(int argc, char *argv[])
 // Return 1 if command program match builtin cmd , 0 otherwise 
 int myCmdHandler(Command *command) 
 { 
-    int numBuiltin = 2,switchArg = 0; 
+    int numBuiltin = 3,switchArg = 0; 
     char* myCmdsList[numBuiltin]; 
     myCmdsList[0] = "cd"; 
 	char path[150];
     myCmdsList[1] = "pwd"; 
 	char s[100];
-
+    myCmdsList[2] = "exit"; 
     for (int i = 0; i < numBuiltin; i++) { 
         if (strcmp(command->cmdArgs[0], myCmdsList[i]) == 0) { 
             switchArg = i + 1; 
@@ -125,36 +191,48 @@ int myCmdHandler(Command *command)
 		fprintf(stdout, "%s\n", getcwd(s, 100));
 		command->status = 0;;
         return 1; 
+	case 3: //exit
+		if (activeJobs == 1){ // only exit process in foreground and no command running in background 
+			fprintf(stderr,"Bye...\n");
+			EXIT = true;
+			command->status = 0;
+		}else{
+			fprintf(stderr,"Error: active jobs still running\n");
+			command->status = 1;
+		}
+		return 1; 
     default: 
         break; 
     }
-
     return 0; 
 } 
 
 // Execute single command 
-int execute (Pipe *mypipe){
+void execute (Pipe *mypipe,char *user_input){
+	/* parent process : keep the file descriptor for STDIN and STDOUT for later use */
+	int myStdin=dup(0); // tmpin = 3 = STDIN
+	int mySdtout=dup(1); // tempout = 4 = STDOUT
+	if (strlen(command__indirect(mypipe->commands[0])) != 0){
+		// Check if command need input redirection 
+		int in_fd;  // fd for input 
+		in_fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
+		dup2(in_fd, 0);
+ 		close(in_fd);
+	}
+	// Check if command need output redirection 
+	if (strlen(command__outdirect(mypipe->commands[0])) != 0){
+		int out_fd;
+		out_fd = open(command__outdirect(mypipe->commands[0]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+		// change the input stream to fd
+		dup2(out_fd, 1);
+		close(out_fd);
+	}
+
+	// execute if command program is not built in commands 
 	if (myCmdHandler(mypipe->commands[0]) == 0){
 		int status = 0;
 		int pid = fork();
 		if (pid == 0){
-			/* Child process, use execvp to execute command on env variable*/
-			// Check if command need input redirection 
-			if (strlen(command__indirect(mypipe->commands[0])) != 0){
-				int fd;
-				fd = open(command__indirect(mypipe->commands[0]), O_RDONLY);
-				dup2(fd, 0);
-				close(fd);
-			}
-			// Check if command need output redirection 
-			if (strlen(command__outdirect(mypipe->commands[0])) != 0){
-				int fd;
-				fd = open(command__outdirect(mypipe->commands[0]),O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-				// change the input stream to fd
-				dup2(fd, 1);
-				close(fd);
-			}
-			// execute if command program is not built in commands 
 			execvp(command__program(mypipe->commands[0]), command__cmdArgs(mypipe->commands[0]));
 			// execvp will not return (unless Args[0] is not a valid executable file)
 			fprintf(stderr, "Error: command not found\n");
@@ -164,15 +242,24 @@ int execute (Pipe *mypipe){
 			perror("fork fails to spawn a child");
 			exit(-1);
 		}else{
+			// Collec child program pid 
+			mypipe->commands[0]->pid = pid;
 			// parent process, waits for child execution
-			wait(&status);
-			mypipe->commands[0]->status = WEXITSTATUS(status);
+			if (!mypipe->background){
+				waitpid(pid,&status,0);
+				mypipe->commands[0]->status = WEXITSTATUS(status);
+				mypipe->FINISHED = true;
+			}
 		}
+	}else{
+		mypipe->FINISHED = true;
 	}
-	if (mypipe->commands[0]->status != 255){
-		fprintf(stderr, "+ completed \'%s\' [%d]\n",command__cmd_line(mypipe->commands[0]),mypipe->commands[0]->status);
-	}
-	return 1;
+
+	// Restore the stdin and stdout for parent process 
+	dup2(myStdin,0);
+	dup2(mySdtout,1);
+	close(myStdin);
+	close(mySdtout);
 }
 
 // Execute pipeline command 
@@ -180,6 +267,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 	/* parent process : keep the file descriptor for STDIN and STDOUT for later use */
 	int myStdin=dup(0); // tmpin = 3 = STDIN
 	int mySdtout=dup(1); // tempout = 4 = STDOUT
+
 	// Initial pid array for all single commands 
 	int pids[mypipe->cmdCount];
 	// Initial exit status array for all command process
@@ -267,14 +355,12 @@ int executePipe (Pipe *mypipe,char *user_input){
 	close(myStdin);
 	close(mySdtout);
 
+	/* wait until all child process compledted */ 
 	for (int i=0;i<mypipe->cmdCount;i++){
-		waitpid(pids[i],&status[i],0); // wait until all child process compledted 
+		waitpid(pids[i],&status[i],0); 
 		// check status for all child process 
-		if (WEXITSTATUS(status[i]) == 255){
-			// error for command not found when execute child process 
-			return 0;
-		} // if 
 	}//for 
+
 	fprintf(stderr, "+ completed \'%s\' ",user_input);
 	for (int i=0;i<mypipe->cmdCount;i++){
 		if ( WEXITSTATUS(status[i]) != 0){

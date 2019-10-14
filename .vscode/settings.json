@@ -2,6 +2,7 @@
     "files.associations": {
         "stdio.h": "c",
         "cmdoperations.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "cmdlineoperations.h": "c"
     }
 }

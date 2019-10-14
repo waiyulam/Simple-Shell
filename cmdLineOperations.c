@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "pipeOperations.h"
+#include "cmdLineOperations.h"
 #include "cmdOperations.h"
 
 // currently assume maximum command line argument is 16
@@ -16,9 +16,13 @@
 void Pipe__init(Pipe* self, char *user_input) {
     char *tempArgs[512];
     self->background = false;
+    self->nextPipe = NULL;
+    self->user_input = (char *)malloc(512 * sizeof(char)); 
+    strcpy(self->user_input,user_input);
     // parse the user_input to multiple command 
     if (parsePipe(self,user_input,tempArgs)){
       self->FAIL = false;
+      self->FINISHED = false;
       char **pipes = (char **)malloc(sizeof(char*) * self->cmdCount );
       for (int i = 0; i < self->cmdCount ; i++){
             pipes[i] = (char *)malloc(512 * sizeof(char));
@@ -48,16 +52,15 @@ Pipe* Pipe__create(char *user_input) {
    return result;
 }
 
-// Destructor (without deallocation)
-void Pipe__reset(Pipe* self) {
-}
-
 // Destructor + deallocation (equivalent to "delete Pipe")
-void Pipe__destroy(Pipe* Pipe) {
-  if (Pipe) {
-     Pipe__reset(Pipe);
-     free(Pipe);
-  }
+void Pipe__destroy(Pipe* head) {
+   Pipe* tmp;
+   while (head != NULL)
+    {
+       tmp = head;
+       head = head->nextPipe;
+       free(tmp);
+    }
 }
 
 // function for finding pipe 
