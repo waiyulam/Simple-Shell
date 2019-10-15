@@ -83,6 +83,8 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          return 0;
       }
    }
+   // Find redirection 
+   
 
    // Parsing command line with "|"
    if (str == NULL){

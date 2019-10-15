@@ -387,7 +387,7 @@ Pipe* ExecStatus (Pipe* cmdHead){
 			fprintf(stderr, "+ completed \'%s\' ",temp->user_input);
 			for (int i=0;i< temp->cmdCount;i++){
 				if ( temp->commands[i]->status != 0){
-					fprintf(stderr,"[%d]",temp->commands[i]->status+i);
+					fprintf(stderr,"[%d]",temp->commands[i]->status);
 				}else{
 					fprintf(stderr,"[%d]",temp->commands[i]->status);
 				}
