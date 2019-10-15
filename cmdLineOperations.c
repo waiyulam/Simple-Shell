@@ -18,6 +18,7 @@ void Pipe__init(Pipe* self, char *user_input) {
     self->background = false;
     self->nextPipe = NULL;
     self->user_input = (char *)malloc(512 * sizeof(char)); 
+    self->cmdHead = NULL;
 
     strcpy(self->user_input,user_input);
     // parse the user_input to multiple command 
@@ -31,14 +32,37 @@ void Pipe__init(Pipe* self, char *user_input) {
             //printf("%s\n",pipes[i]);
          }
 
-      self->commands = (Command **)malloc(sizeof(Command*) * self->cmdCount);
+      Command* curCmd = self->cmdHead;
       for (int i=0; i < self->cmdCount;i++){
-         self->commands[i] = Command__create(pipes[i]);
-         self->commands[i]->cmdIndex = i;
-         if (command__Fail(self->commands[i])){
-				self->FAIL = true;
-            return;
-			}
+         if (self->cmdHead == NULL){
+            self->cmdHead = Command__create(pipes[i]);
+            if (self->cmdHead == NULL)
+            { 
+               perror("malloc fails to alloscate memory");
+               exit(1);
+            }
+            if (self->cmdHead->FAIL){ 
+               self->FAIL = true;
+               return; 
+            }
+            curCmd = self->cmdHead;
+         }else{
+            while (curCmd->nextCommand != NULL)
+			   {
+				   curCmd = curCmd->nextCommand;
+			   }
+            // Put new command into tail of linked list 
+			   curCmd->nextCommand = Command__create(pipes[i]);
+            if (curCmd->nextCommand == NULL)
+            { 
+               perror("malloc fails to alloscate memory");
+               exit(1);
+            } 
+            if (curCmd->nextCommand->FAIL){ 
+               self->FAIL = true;
+               return;
+            }
+         }
       }
     }else{
        // mislocated background 
@@ -65,6 +89,7 @@ void Pipe__destroy(Pipe* head) {
 }
 
 // function for finding pipe 
+// Find parsing error from left to right and output the leftmost error 
 int parsePipe(Pipe *mypipe, char* str, char** strpiped) 
 { 
    // Find background command flag 
@@ -83,9 +108,7 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          return 0;
       }
    }
-   // Find redirection 
    
-
    // Parsing command line with "|"
    if (str == NULL){
 		fprintf(stderr,"Error: missing command\n");
@@ -98,11 +121,12 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
    char* token;
    // save pointer 
    char* savePipe = NULL;
-   token = strtok_r(str, "|", &savePipe);
-   if (token == NULL){
+   // missing command : e.g.    | pwd 
+   if (str[0] == '|'){
       fprintf(stderr,"Error: missing command\n");
       return 0;
    }
+   token = strtok_r(str, "|", &savePipe);
    while (token != NULL)
    { 
       // fprintf(stderr,"token: %s\n",token);
@@ -112,13 +136,16 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
       token = strtok_r(NULL, "|", &savePipe);
    }
 
-   int temp = 0; // count the occurence of "|" in command line 
+   // missing command error handling : "pwd | pwd | "
+   int temp = 0; 
    for (temp=0; temp_str[temp]; temp_str[temp]=='|' ? temp++ : *temp_str++);
    if (pipeCount < temp+1){
       fprintf(stderr,"Error: missing command\n");
       return 0;
    }
+
    mypipe->cmdCount = pipeCount;
+   
    return 1; 
 } 
   

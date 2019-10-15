@@ -14,7 +14,7 @@ typedef struct Pipe{
     // store the user input for command line 
     char* user_input;
     // this is command array and each element contains one command line execution
-    Command **commands;
+    Command *cmdHead;
     // cmdCount is a variable that keep track of number of command lines 
     int cmdCount;
     // background variable is to tell if the command line is background command 

@@ -5,7 +5,7 @@
   
 int main() 
 { 
-    char str[] = "g"; 
+    char str[] = "pwd |"; 
   
     // Returns first token 
     char* token = strtok(str, "|"); 

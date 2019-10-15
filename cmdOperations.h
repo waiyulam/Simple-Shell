@@ -4,28 +4,28 @@
 #ifndef CMDOPERATIONS_H_
 #define CMDOPERATIONS_H_
 
-typedef struct {
+typedef struct Command{
     // cmd_line is a string variable that stores command line input 
     char *cmd_line;
+    // program name 
+    char *program;
     // cmdArgs is a string array that stores parsing result of command line input
-    // assume we have 16 maximum arguments  
+    // Assume we have 16 maximum arguments  
     char **cmdArgs;
     // numArgs keep track of the number of arguments in command line input 
     int numArgs;
-    // program name 
-    char *program;
     // input redirect file name 
     char *in_redirect;
     // output redirect file name 
     char *out_redirect;
-    // boolean variable indicate if command constructor succeed or fail
-    bool FAIL;
-    // cmdIndex variable is to keep track of the index of command line if user input has multiple cmd with pipe
-    int cmdIndex;
     // Collect pid for command 
     int pid;
     // Collect status for command 
     int status;
+    // Point to next command in command line  
+    struct Command *nextCommand;
+    // boolean variable : FAIL is true if command constructor fail ( single command line has error )
+    bool FAIL;
 
 } Command;
 

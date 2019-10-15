@@ -19,6 +19,8 @@ void command__init(Command* self, char *user_input) {
       self->out_redirect = (char *)malloc(buffersize * sizeof(char));
       self->FAIL = false;
       self->status = 0;
+      self->nextCommand = NULL;
+      
       char *tempArgs[Max_ARG];
       for (int i = 0; i < Max_ARG; i++)
 		{
