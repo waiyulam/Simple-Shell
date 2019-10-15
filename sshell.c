@@ -25,13 +25,18 @@ int myCmdHandler(Command *command) ;
 int redirection(Command *command,int pipeCount);
 void execute (Pipe *mypipe,char *user_input);
 int executePipe (Pipe *mypipe,char *user_input);
+Pipe* ExecStatus (Pipe* cmdHead);
 
 int main(int argc, char *argv[])
 {
 	// The head of command line for command line linked list 
 	Pipe* cmdHead = NULL;
+	
 	while (1)
 	{	
+		if (cmdHead != NULL){
+			cmdHead = ExecStatus(cmdHead);
+		}
 		// Maximum input line size is 512
 		int buffersize = 512;
 		char* user_input = (char *)malloc(buffersize * sizeof(char));
@@ -110,8 +115,6 @@ int main(int argc, char *argv[])
 		}
 		// command line process created and running on the foreground/background
 		activeJobs++; 
-		// fprintf(stderr,"commands : %s\n",curPipe->commands[0]->program);
-
 		// Execute if there is single command 
 		if (curPipe->cmdCount == 1){
 			// executing .. 
@@ -119,46 +122,6 @@ int main(int argc, char *argv[])
 			if (EXIT){
 				// Exit shell
 				return EXIT_SUCCESS;
-			}
-			// check if any command line finished and print 
-			int status;
-			Pipe *temp = cmdHead;
-			Pipe *prevTemp = NULL;
-			while(temp){
-				// First check if cuurent pipe has all command finished 
-				if (!temp->FINISHED){ // only check for command line not finished -> call waitpid twice will change status
-					/* WNOHANG:	return immediately if no child has exited
-					* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
-					*/
-					int finishedCmd = 0; // counting the number of finished process in current pipe 
-					// wait until last command finished
-					// Multiple program wiht pipe line 
-					for (int i = 0; i< temp->cmdCount;i++){
-						if (waitpid(temp->commands[i]->pid,&status,WNOHANG) != 0){ 
-							finishedCmd++;
-							temp->commands[i]->status = WEXITSTATUS(status);
-						}
-					}
-					if (finishedCmd == temp->cmdCount){
-						// All the program has been done 
-						temp->FINISHED = true;
-					}
-				}
-				if (temp->FINISHED == true){ 
-					activeJobs--;
-					fprintf(stderr, "+ completed \'%s\' [%d]\n",temp->user_input,temp->commands[0]->status);
-					if (prevTemp == NULL) { // prevTemp of head is null
-						cmdHead = cmdHead->nextPipe;
-						prevTemp = NULL;
-						temp = temp->nextPipe;
-					}else{
-						prevTemp->nextPipe = temp->nextPipe;
-						temp = temp->nextPipe;
-					}	
-				}else{
-					prevTemp = temp;
-					temp = temp->nextPipe;
-				}
 			}
 		}
 		// execute multiple commands
@@ -169,54 +132,6 @@ int main(int argc, char *argv[])
 				// Exit shell
 				return EXIT_SUCCESS;
 			}
-			int status;
-			Pipe *temp = cmdHead;
-			Pipe *prevTemp = NULL;
-			while(temp){
-				// First check if cuurent pipe has all command finished 
-				if (!temp->FINISHED){ // only check for command line not finished -> call waitpid twice will change status
-					/* WNOHANG:	return immediately if no child has exited
-					* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
-					*/
-					int finishedCmd = 0; // counting the number of finished process in current pipe 
-					// wait until last command finished
-					// Multiple program wiht pipe line 
-					for (int i = 0; i< temp->cmdCount;i++){
-						if (waitpid(temp->commands[i]->pid,&status,WNOHANG) != 0){ 
-							finishedCmd++;
-							temp->commands[i]->status = WEXITSTATUS(status);
-						}
-					}
-					if (finishedCmd == temp->cmdCount){
-						// All the program has been done 
-						temp->FINISHED = true;
-					}
-				}
-				if (temp->FINISHED == true){ 
-					activeJobs--;
-					fprintf(stderr, "+ completed \'%s\' ",temp->user_input);
-					for (int i=0;i< temp->cmdCount;i++){
-						if ( WEXITSTATUS(temp->commands[i]->status) != 0){
-							fprintf(stderr,"[%d]",temp->commands[i]->cmdIndex+1);
-						}else{
-							fprintf(stderr,"[%d]",WEXITSTATUS(temp->commands[i]->status));
-						}
-					}
-					fprintf(stderr, "\n");
-					if (prevTemp == NULL) { // prevTemp of head is null
-						cmdHead = cmdHead->nextPipe;
-						prevTemp = NULL;
-						temp = temp->nextPipe;
-					}else{
-						prevTemp->nextPipe = temp->nextPipe;
-						temp = temp->nextPipe;
-					}	
-				}else{
-					prevTemp = temp;
-					temp = temp->nextPipe;
-				}
-			}
-
     	} // if else 
 	} // while loop 
 
@@ -427,12 +342,78 @@ int executePipe (Pipe *mypipe,char *user_input){
 		for (int i=0;i<mypipe->cmdCount;i++){
 			waitpid(pids[i],&status[i],0); 
 			mypipe->commands[i]->status = WEXITSTATUS(status[i]);
+			// fprintf(stderr, "command %s exit status %d\n",mypipe->commands[i]->program,mypipe->commands[i]->status);
 			// check status for all child process 
 		}//for
 		mypipe->FINISHED = true;
 	}
 	
 	return 1;
+}
+
+/* 
+	* This function do the following thing 
+	* 1. walk though our pipe data structure and Detect any zombie process 
+	* 2. Delete node in linked list if it is finished 
+	* 3. update command head pointer if necessary 
+	* 4. print "+Completed..." 
+*/
+Pipe* ExecStatus (Pipe* cmdHead){
+	int status;
+	Pipe *temp = cmdHead;
+	Pipe *prevTemp = NULL;
+	while(temp){
+		// First check if cuurent pipe has all command finished 
+		if (!temp->FINISHED){ // only check for command line not finished -> call waitpid twice will change status
+			/* WNOHANG:	return immediately if no child has exited
+			* If WNOHANG was specified in options and there were no children in a waitable state, then waitid() returns 0
+			*/
+			int finishedCmd = 0; // counting the number of finished process in current pipe 
+			// wait until last command finished
+			// Multiple program wiht pipe line 
+			for (int i = 0; i< temp->cmdCount;i++){
+				if (waitpid(temp->commands[i]->pid,&status,WNOHANG) != 0){ 
+					finishedCmd++;
+					temp->commands[i]->status = WEXITSTATUS(status);
+				}
+			}
+			if (finishedCmd == temp->cmdCount){
+				// All the program has been done 
+				temp->FINISHED = true;
+			}
+		}
+		if (temp->FINISHED == true){ 
+			activeJobs--;
+			fprintf(stderr, "+ completed \'%s\' ",temp->user_input);
+			for (int i=0;i< temp->cmdCount;i++){
+				if ( temp->commands[i]->status != 0){
+					fprintf(stderr,"[%d]",temp->commands[i]->status+1);
+				}else{
+					fprintf(stderr,"[%d]",temp->commands[i]->status);
+				}
+			}
+			fprintf(stderr, "\n");
+			if (prevTemp == NULL) { // prevTemp of head is null
+				// store the old value of head pointer 
+       			Pipe *oldValue = cmdHead;
+				// Change head pointer to point to next pipe
+				cmdHead = cmdHead->nextPipe;
+				// delete memory allocated for the previous head node 
+				free(oldValue); 
+				prevTemp = NULL;
+				temp = temp->nextPipe;
+			}else{
+				prevTemp->nextPipe = temp->nextPipe;
+				temp = temp->nextPipe;
+			}	
+		}else{
+			prevTemp = temp;
+			temp = temp->nextPipe;
+		}
+	}
+
+	return cmdHead;
+
 }
 
 
