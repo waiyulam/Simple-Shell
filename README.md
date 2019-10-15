@@ -1,10 +1,12 @@
 # Simple-Shell
-### goal
-The goal of this project is to understand important UNIX system calls by implementing a simple shell called sshell. A shell is
-a command-line interpreter: it accepts input from the user under the form of command lines and executes them.
-### High level idea of the program design:
+## goal
+The goal of this project is to understand important UNIX system calls by implementing a simple shell called sshell. A shell is a command-line interpreter: it accepts input from the user under the form of command lines and executes them.
 
-### Implementation details:
+## High level idea of the program design:
+When user inputs command, we first decide if user has input or not. If user input <enter>, removing tailing newline from command line. When user has valid input, we use function executeStatus to manage active processes and delete zombie processes. If we don't have any other processes, current command is the head of processes' linked list. If we have other active processes, we add current command into the tail of the linked list. Then in current process, we decide if command line is a pipe structure or not. If it is a pipe structure, we use function executePige to execute it and if it is a single command, we use our execute function to execute it. Specific implementation details will be discussed in the module <implementation details> with respect to each phase. 
+  
+
+## Implementation details:
 Regarding to the phase 1, we handle the redirecting error output using printf(stderr, ...) and input &status pointer into wait() in order to obtain the exit value for the child process. 
 
 
@@ -22,3 +24,5 @@ Regarding to phase 7 and 8, we designed another data structure called pipe using
 ### Citation details
 1. Different strings can be parsed concurrently using sequences of calls to strtok_r() that specify different saveptr arguments. The reason that we did not use strtok when parsing is not thread safe.
 https://stackoverflow.com/questions/15961253/c-correct-usage-of-strtok-r
+2. Understand how strtok works and effects when put string input as its parameters.  
+https://www.tutorialspoint.com/c_standard_library/c_function_strtok.htm
