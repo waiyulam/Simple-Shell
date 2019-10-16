@@ -56,10 +56,14 @@ Therefore, in the parent process, if a command has a background field true, it d
 https://stackoverflow.com/questions/15961253/c-correct-usage-of-strtok-r
 2. Understand how strtok works and effects when put string input as its parameters.  
 https://www.tutorialspoint.com/c_standard_library/c_function_strtok.htm
-3. Understand how waitpid workds and the available option we can use 
+3. Understand how waitpid workds and the available option we can use  
 https://www.tutorialspoint.com/unix_system_calls/waitpid.htm 
+
 4. Understand how to construct linked list data structure in C
-https://www.learn-c.org/en/Linked_lists 
+
+	https://www.learn-c.org/en/Linked_lists 
+
 5. Understand how to use struct to build data structure in C
-https://www.rose-hulman.edu/class/cs/archive/csse120-old/csse120-old-terms/201030robotics/Slides/Structs.pdf 
+
+	https://www.rose-hulman.edu/class/cs/archive/csse120-old/csse120-old-terms/201030robotics/Slides/Structs.pdf 
 
