@@ -125,7 +125,7 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
 			return 0; 
       }else if(pipeCount == 1 && strlen(curCmd->in_redirect) != 0){
          if (strcmp(curCmd->in_redirect," ") == 0){
-            fprintf(stderr,"Error: no output file\n");
+            fprintf(stderr,"Error: no input file\n");
             return 0;
          }
          // cannot open input file
