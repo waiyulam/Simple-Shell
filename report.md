@@ -82,7 +82,7 @@ execute and executepage function, we have the following code:
 			if (!mypipe->background){
 				waitpid(pid,status,0);
 				mypipe->commands[0]->status = 
-WEXITSTATUS(status);
+				WEXITSTATUS(status);
 				mypipe->FINISHED = true;
 			}
 ```
