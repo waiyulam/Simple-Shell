@@ -124,6 +124,10 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          fprintf(stderr,"Error: mislocated input redirection\n");
 			return 0; 
       }else if(pipeCount == 1 && strlen(curCmd->in_redirect) != 0){
+         if (strcmp(curCmd->in_redirect," ") == 0){
+            fprintf(stderr,"Error: no output file\n");
+            return 0;
+         }
          // cannot open input file
          int fd;
          fd = open(curCmd->in_redirect, O_RDONLY);
@@ -157,6 +161,10 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
       }else{
          // check output open error 
          if (strlen(curCmd->out_redirect) != 0){
+            if (strcmp(curCmd->out_redirect," ") == 0){
+               fprintf(stderr,"Error: no output file\n");
+               return 0;
+            }
             int fd;
             // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
             fd = open(curCmd->out_redirect,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);

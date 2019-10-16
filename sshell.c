@@ -256,24 +256,6 @@ int executePipe (Pipe *mypipe,char *user_input){
 	* File descriptor : 0 STDIN is link to input redirect file or STDIN 
 	* File descriptor : 1 STDOUT is link to first Pipe[1] */
 	int in_fd;  // fd for input 
-
-	// Pipe redirect errror : 
-	Command *node = mypipe->cmdHead;
-	for (int i =0; i<mypipe->cmdCount;i++){
-		if (strlen(command__outdirect(node)) != 0){
-			if (i != ( mypipe->cmdCount-1) ){
-				fprintf(stderr,"Error: mislocated output redirection\n");
-				return 0; // error -> don't execute 
-			}
-		}
-		if (strlen(command__indirect(node)) != 0){
-			if ( i != 0 ){
-				fprintf(stderr,"Error: mislocated input redirection\n");
-				return 0; // error -> don't execute 
-			}
-		}
-		node = node->nextCommand;
-	} // for 
 	
 	if (strlen(command__indirect(mypipe->cmdHead)) != 0){
 		// Check if command need input redirection 
@@ -284,7 +266,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 	}
 
 	int out_fd; // fd for output 
-	node = mypipe->cmdHead;
+	Command *node = mypipe->cmdHead;
 	for (int i =0; i < mypipe->cmdCount;i++){
 		// Redirect input : first command : 0/input file, later command : pipe[0]
 		dup2(in_fd, 0);

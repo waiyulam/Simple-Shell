@@ -79,9 +79,7 @@ void command__init(Command* self, char *user_input) {
             }
             if (token == NULL){
                // example: echo gogo > 
-               fprintf(stderr, "Error: no output file\n");
-               self->FAIL = true;
-               break;
+               strcpy(self->out_redirect," ");
             }else{
                // example : echo gogo > temp.txt
                strcpy(self->out_redirect,token);
@@ -111,10 +109,7 @@ void command__init(Command* self, char *user_input) {
                parseCount++;
             }
             if (token == NULL){
-               // example: echo gogo < 
-               fprintf(stderr, "Error: no input file\n");
-               self->FAIL = true;
-               break;
+               strcpy(self->in_redirect," ");
             }else{
                // example : echo gogo < temp.txt
                strcpy(self->in_redirect,token);
