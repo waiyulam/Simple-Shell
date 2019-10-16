@@ -274,6 +274,7 @@ int executePipe (Pipe *mypipe,char *user_input){
 		}
 		node = node->nextCommand;
 	} // for 
+	
 	if (strlen(command__indirect(mypipe->cmdHead)) != 0){
 		// Check if command need input redirection 
 		in_fd = open(command__indirect(mypipe->cmdHead), O_RDONLY);

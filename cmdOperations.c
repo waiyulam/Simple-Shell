@@ -20,7 +20,7 @@ void command__init(Command* self, char *user_input) {
       self->FAIL = false;
       self->status = 0;
       self->nextCommand = NULL;
-      
+
       char *tempArgs[Max_ARG];
       for (int i = 0; i < Max_ARG; i++)
 		{
@@ -85,30 +85,10 @@ void command__init(Command* self, char *user_input) {
             }else{
                // example : echo gogo > temp.txt
                strcpy(self->out_redirect,token);
-               //   printf("output file:  %s\n",token);
-               int fd;
-               // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
-               fd = open(self->out_redirect,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
-               // check if the file user inputted can not be opened
-               if (fd < 0) {
-                   fprintf(stderr, "Error: cannot open output file\n");
-                   self->FAIL = true; // error -> continue to prompt user for new command line 
-               }
-               close(fd);
             }
          }else{
             // example: >temp.txt
             strcpy(self->out_redirect,temp);
-           // printf("output file:  %s\n",temp);
-            int fd;
-            // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
-            fd = open(self->out_redirect,O_WRONLY|O_CREAT|O_TRUNC);
-            // check if the file user inputted can not be opened
-            if (fd < 0) {
-               fprintf(stderr, "Error: cannot open output file\n");
-                  self->FAIL = true; // error -> continue to prompt user for new command line 
-            }
-            close(fd);
          }
       }
       // Find current token contains input redirection files 
@@ -138,28 +118,11 @@ void command__init(Command* self, char *user_input) {
             }else{
                // example : echo gogo < temp.txt
                strcpy(self->in_redirect,token);
-               int fd;
-				   fd = open(self->in_redirect, O_RDONLY);
-               // check if the file user inputted can not be opened
-				   if (fd < 0) {
-					   fprintf(stderr, "Error: cannot open input file\n");
-					   self->FAIL = true; // error -> continue to prompt user for new command line 
-				   }
-               close(fd);
                //printf("input file:  %s\n",token);
             }
          }else{
             // example: <temp.txt
             strcpy(self->in_redirect,temp);
-            int fd;
-            fd = open(self->in_redirect, O_RDONLY);
-            // check if the file user inputted can not be opened
-            if (fd < 0) {
-               fprintf(stderr, "Error: cannot open input file\n");
-               self->FAIL = true; // error -> continue to prompt user for new command line 
-            }
-            close(fd);
-            //printf("input file:  %s\n",temp);
          }
       }else{
         tempArgs[argsCount] = token;

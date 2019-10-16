@@ -16,6 +16,7 @@
 void Pipe__init(Pipe* self, char *user_input) {
     char *tempArgs[512];
     self->background = false;
+    self->FINISHED = false;
     self->nextPipe = NULL;
     self->user_input = (char *)malloc(512 * sizeof(char)); 
     self->cmdHead = NULL;
@@ -24,46 +25,6 @@ void Pipe__init(Pipe* self, char *user_input) {
     // parse the user_input to multiple command 
     if (parsePipe(self,user_input,tempArgs)){
       self->FAIL = false;
-      self->FINISHED = false;
-      char **pipes = (char **)malloc(sizeof(char*) * self->cmdCount );
-      for (int i = 0; i < self->cmdCount ; i++){
-            pipes[i] = (char *)malloc(512 * sizeof(char));
-            strcpy(pipes[i], tempArgs[i]);
-            //printf("%s\n",pipes[i]);
-         }
-
-      Command* curCmd = self->cmdHead;
-      for (int i=0; i < self->cmdCount;i++){
-         if (self->cmdHead == NULL){
-            self->cmdHead = Command__create(pipes[i]);
-            if (self->cmdHead == NULL)
-            { 
-               perror("malloc fails to alloscate memory");
-               exit(1);
-            }
-            if (self->cmdHead->FAIL){ 
-               self->FAIL = true;
-               return; 
-            }
-            curCmd = self->cmdHead;
-         }else{
-            while (curCmd->nextCommand != NULL)
-			   {
-				   curCmd = curCmd->nextCommand;
-			   }
-            // Put new command into tail of linked list 
-			   curCmd->nextCommand = Command__create(pipes[i]);
-            if (curCmd->nextCommand == NULL)
-            { 
-               perror("malloc fails to alloscate memory");
-               exit(1);
-            } 
-            if (curCmd->nextCommand->FAIL){ 
-               self->FAIL = true;
-               return;
-            }
-         }
-      }
     }else{
        // mislocated background 
        self->FAIL = true;
@@ -92,31 +53,15 @@ void Pipe__destroy(Pipe* head) {
 // Find parsing error from left to right and output the leftmost error 
 int parsePipe(Pipe *mypipe, char* str, char** strpiped) 
 { 
-   // Find background command flag 
-   char *background;
-   int index;
-   background = strchr(str, '&');
-   if (background != NULL){
-      index = (int)(background - str);
-      // The background sign may only appear as the last token of a command line.
-      if (index == (strlen(str)-1)){
-         str = strtok(str,"&");
-         mypipe->background = true;
-      }else{
-         //Error: mislocated background sign
-         fprintf(stderr,"Error: mislocated background sign\n");
-         return 0;
-      }
-   }
-   
-   // Parsing command line with "|"
    if (str == NULL){
 		fprintf(stderr,"Error: missing command\n");
       return 0;
 	}
+   // temp_str is for error handling of pipe sign and number of commands matching 
+   // e.g. pwd | pwd | 
    char *temp_str = (char *)malloc(strlen(str) * sizeof(char));
    strcpy(temp_str,str);
-
+   // Parsing command line with "|"
    int pipeCount = 0;
    char* token;
    // save pointer 
@@ -128,11 +73,119 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
    }
    token = strtok_r(str, "|", &savePipe);
    while (token != NULL)
-   { 
-      // fprintf(stderr,"token: %s\n",token);
-      strpiped[pipeCount] = (char *)malloc(512 * sizeof(char));
-      strpiped[pipeCount] = token;
+   {
+      // tempstore string is for parsing single command line with "&"
+      char* tempstore = (char *)malloc(512 * sizeof(char));
+      strcpy(tempstore,token);
+      char* subtoken;
+      char* saveBackground = NULL;
+      //missing command : e.g. & | ls 
+      if (str[0] == '&'){
+         fprintf(stderr,"Error: missing command\n");
+         return 0;
+      }
+      // subtoken now is the single command line to create comamnd 
+      // e.g : ls & | ls
+      subtoken = strtok_r(tempstore,"&",&saveBackground);
+      // Create new single command 
+      Command* curCmd = mypipe->cmdHead;
+      if (mypipe->cmdHead == NULL){
+         mypipe->cmdHead = Command__create(subtoken);
+         if (mypipe->cmdHead == NULL)
+         { 
+            perror("malloc fails to alloscate memory");
+            exit(1);
+         }
+         if (mypipe->cmdHead->FAIL){ 
+            return 0; 
+         }
+         curCmd = mypipe->cmdHead;
+      }else{
+         while (curCmd->nextCommand != NULL)
+         {
+            curCmd = curCmd->nextCommand;
+         }
+         // Put new command into tail of linked list 
+         curCmd->nextCommand = Command__create(subtoken);
+         if (curCmd->nextCommand == NULL)
+         { 
+            perror("malloc fails to alloscate memory");
+            exit(1);
+         } 
+         if (curCmd->nextCommand->FAIL){ 
+            return 0;
+         }
+         curCmd = curCmd->nextCommand;
+      }
+      // Increment one single command in mypipe 
       pipeCount++;
+      // mislocated input redirection 
+      if (pipeCount != 1 && strlen(curCmd->in_redirect) != 0){
+         fprintf(stderr,"Error: mislocated input redirection\n");
+			return 0; 
+      }else if(pipeCount == 1 && strlen(curCmd->in_redirect) != 0){
+         // cannot open input file
+         int fd;
+         fd = open(curCmd->in_redirect, O_RDONLY);
+         // check if the file user inputted can not be opened
+         if (fd < 0) {
+            fprintf(stderr, "Error: cannot open input file\n");
+            close(fd);
+            return 0; // error -> continue to prompt user for new command line 
+         }
+         close(fd);
+      }
+
+      // savePipe is the right-hand sub_string after parsing "|"
+      // if savePipe == NULL : this is last command 
+      if (savePipe != NULL){
+         // mislocated output redirection 
+         if (strlen(curCmd->out_redirect) != 0){
+            fprintf(stderr,"Error: mislocated output redirection\n");
+				return 0; 
+         }
+         // mislocated background redirection 
+         char *background;
+         background = strchr(token, '&');
+         if (background != NULL){
+            fprintf(stderr,"Error: mislocated background sign\n");
+            return 0;
+         }
+         // error example : ls || ls 
+         if (savePipe[0] == '|'){
+            fprintf(stderr,"Error: missing command\n");
+            return 0;
+         }
+      }else{
+         // check output open error 
+         if (strlen(curCmd->out_redirect) != 0){
+            int fd;
+            // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
+            fd = open(curCmd->out_redirect,O_WRONLY|O_CREAT|O_TRUNC);
+            // check if the file user inputted can not be opened
+            if (fd < 0) {
+                  fprintf(stderr, "Error: cannot open output file\n");
+                  close(fd);
+                  return 0; // error -> continue to prompt user for new command line 
+            }
+            close(fd);
+         }
+         // The background sign may only appear as the last token of a command line.
+         char *background;
+         background = strchr(token, '&');
+         if (background != NULL){
+            int index = (int)(background - token);
+            // "&" has string on left hand side 
+            if (index == (strlen(token)-1)){
+               mypipe->background = true;
+            }else{
+               //Error: mislocated background sign
+               fprintf(stderr,"Error: mislocated background sign\n");
+               return 0;
+            }
+         } 
+      }
+
       token = strtok_r(NULL, "|", &savePipe);
    }
 
