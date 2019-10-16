@@ -161,7 +161,7 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          if (strlen(curCmd->out_redirect) != 0){
             int fd;
             // fprintf(stderr, "Output direct file %s\n",command__outdirect(command));
-            fd = open(curCmd->out_redirect,O_WRONLY|O_CREAT|O_TRUNC);
+            fd = open(curCmd->out_redirect,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
             // check if the file user inputted can not be opened
             if (fd < 0) {
                   fprintf(stderr, "Error: cannot open output file\n");
