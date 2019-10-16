@@ -159,12 +159,17 @@ int myCmdHandler(Command *command)
     } 
     switch (switchArg) { 
     case 1: //cd 
-		strcpy(path,command->cmdArgs[1]);
-		if (chdir(path) == 0) {
-			command->status = 0;
-		} else {
+		if (command->cmdArgs[1] == NULL){ // cd 
 			fprintf(stderr, "Error: no such directory\n");
 			command->status = 1;
+		}else{
+			strcpy(path,command->cmdArgs[1]);
+			if (chdir(path) == 0) {
+				command->status = 0;
+			} else {
+				fprintf(stderr, "Error: no such directory\n");
+				command->status = 1;
+			}
 		}
         return 1; 
     case 2: // pwd
