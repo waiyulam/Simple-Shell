@@ -24,7 +24,6 @@ Regarding to phase 7, we designed another data structure called pipe using struc
 Regarding to phase 8, we used linked list on our data structure pipe. Use again pipe construction to detect if there is "&" at the end of the command. In the execute and executepage function, we have the following code:
 
 ```
-else{
 			// Collec child program pid
 			mypipe->commands[0]->pid = pid;
 			// parent process, waits for child execution
@@ -33,7 +32,6 @@ else{
 				mypipe->commands[0]->status = WEXITSTATUS(status);
 				mypipe->FINISHED = true;
 			}
-}
 ```
 Therefore, in the parent process, if a command has a background field true, it doesn't have to wait until the child process finishes. It will run in the background when new prompt being updated. As described in the <high level idea>,  we use executeStatus to manage the new process into the linked list. Background process if active will be stored in the linked list. executeStatus will manage processes inside of the linked list by checking their pointers, if some become null, the zombie process nodes will be removed from the linked list. Global variable "activeJobs" keeps track of number of active nodes in the linked list. If there is only one node of the linked list, myCmdHandler can take "exit" and exit the shell. Each pipe type has the field of finished and cmdCount. When a pipe finishes all its commands, it is finished. It will print out complete statement with all its commands' statuses. While loop inside of executeStatus will guarantee all the nodes in the linked list being finished. executeStatus will print all completes before next shell prompt. 
 
