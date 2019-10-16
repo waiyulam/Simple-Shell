@@ -80,7 +80,7 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
       char* subtoken;
       char* saveBackground = NULL;
       //missing command : e.g. & | ls 
-      if (str[0] == '&'){
+      if (tempstore[0] == '&'){
          fprintf(stderr,"Error: missing command\n");
          return 0;
       }
@@ -135,10 +135,13 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          }
          close(fd);
       }
-
-      // savePipe is the right-hand sub_string after parsing "|"
-      // if savePipe == NULL : this is last command 
-      if (savePipe != NULL){
+      // keep the previous command 
+      char* prev_token = (char *)malloc(512 * sizeof(char));
+      strcpy(prev_token,token);
+      token = strtok_r(NULL, "|", &savePipe);
+      // savePipe is the unchanged string from previous call 
+      // if temp == NULL : this is last command 
+      if (token != NULL){ 
          // mislocated output redirection 
          if (strlen(curCmd->out_redirect) != 0){
             fprintf(stderr,"Error: mislocated output redirection\n");
@@ -146,14 +149,9 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          }
          // mislocated background redirection 
          char *background;
-         background = strchr(token, '&');
+         background = strchr(prev_token, '&');
          if (background != NULL){
             fprintf(stderr,"Error: mislocated background sign\n");
-            return 0;
-         }
-         // error example : ls || ls 
-         if (savePipe[0] == '|'){
-            fprintf(stderr,"Error: missing command\n");
             return 0;
          }
       }else{
@@ -172,11 +170,11 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          }
          // The background sign may only appear as the last token of a command line.
          char *background;
-         background = strchr(token, '&');
+         background = strchr(prev_token, '&');
          if (background != NULL){
-            int index = (int)(background - token);
+            int index = (int)(background - prev_token);
             // "&" has string on left hand side 
-            if (index == (strlen(token)-1)){
+            if (index == (strlen(prev_token)-1)){
                mypipe->background = true;
             }else{
                //Error: mislocated background sign
@@ -186,7 +184,6 @@ int parsePipe(Pipe *mypipe, char* str, char** strpiped)
          } 
       }
 
-      token = strtok_r(NULL, "|", &savePipe);
    }
 
    // missing command error handling : "pwd | pwd | "
