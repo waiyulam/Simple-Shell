@@ -1,9 +1,9 @@
 # Simple-Shell
-## goal
+## Goal
 The goal of this project is to understand important UNIX system calls by implementing a simple shell called sshell. A shell is a command-line interpreter: it accepts input from the user under the form of command lines and executes them.
 
 ## High level idea of the program design:
-When user inputs command, we first decide if user has input or not. If user input <enter>, removing tailing newline from command line. When user has valid input, we use function executeStatus to manage active processes and delete zombie processes, printing complete statement when entire processes in the linked list are done. If we don't have any other processes, current command is the head of processes' linked list. If we have other active processes, we add current command into the tail of the linked list and build command as pipe structure. Then in current process, we decide if command line is a pipe structure or not. If it is a pipe structure, we use function executePige to execute it and if it is a single command, we use our execute function to execute it. Specific implementation details about executePige,execute,ExecStatus and myCmdHandler will be discussed in the module <implementation details> with respect to each phase. 
+When user inputs command, we first decide if user has input or not. If user input <enter>, removing tailing newline from command line. When user has valid input, we use function executeStatus to manage active processes and delete zombie processes, printing complete statement when entire processes in the linked list are done. If we don't have any other processes, current command is the head of processes' linked list. If we have other active processes, we add current command into the tail of the linked list and build command as pipe structure. Then in current process, we decide if command line is a pipe structure or not. If it is a pipe structure, we use function executePige to execute it and if it is a single command, we use our execute function to execute it. Specific implementation details about executePige,execute,ExecStatus and myCmdHandler will be discussed in the implementation details with respect to each phase. 
   
 
 ## Implementation details:
@@ -21,7 +21,19 @@ Regarding to phase 5 and 6, as described in struct command, file names will be s
 
 Regarding to phase 7, we designed another data structure called pipe using struct. Pipe, while building its structure, it parses user input using strtok, storing each command in the command array. During the parsing, it will also check whether the command line is background. Inside of executePipe function, it assembles execute function, instead it loops through the command array. Replacing stdin or out with infile or outfile, it uses execvp to execute non-built in and myCmdHandler for the built-in. 
 
-Regarding to phase 8, 
+Regarding to phase 8, we used linked list on our data structure pipe. Use again pipe construction to detect if there is "&" at the end of the command. In the execute and executepage function, we have the following code:
+
+```
+			// Collec child program pid
+			mypipe->commands[0]->pid = pid;
+			// parent process, waits for child execution
+			if (!mypipe->background){
+				waitpid(pid,status,0);
+				mypipe->commands[0]->status = WEXITSTATUS(status);
+				mypipe->FINISHED = true;
+			}
+```
+Therefore, in the parent process, if a command has a background field true, it doesn't have to wait until the child process finishes. It will run in the background when new prompt being updated. As described in the high level idea,  we use executeStatus to manage the new process into the linked list. Background process if active will be stored in the linked list. executeStatus will manage processes inside of the linked list by checking their pointers, if some become null, the zombie process nodes will be removed from the linked list. Global variable "activeJobs" keeps track of number of active nodes in the linked list. If there is only one node of the linked list, myCmdHandler can take "exit" and exit the shell. Each pipe type has the field of finished and cmdCount. When a pipe finishes all its commands, it is finished. It will print out complete statement with all its commands' statuses. While loop inside of executeStatus will guarantee all the nodes in the linked list being finished. 
 
 ### Citation details
 1. Different strings can be parsed concurrently using sequences of calls to strtok_r() that specify different saveptr arguments. The reason that we did not use strtok when parsing is not thread safe.
